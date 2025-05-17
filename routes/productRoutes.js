@@ -15,7 +15,7 @@ router.get('/', getAllProducts);
 router.get('/:id', getProductById);
 router.get('/category/:category', getProductsByCategory); 
 router.post('/', createProduct);
-router.post('/delete', deleteAllProducts); 
+router.delete('/delete', deleteAllProducts);
 router.post('/batch', createMultipleProducts);
 router.post('/multipleproductcategory', createProductCategory); // Create a new category
 

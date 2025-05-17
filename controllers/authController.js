@@ -1,9 +1,8 @@
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
-// Register User
-exports.registerUser = async (req, res) => {
+export const registerUser = async (req, res) => {
     const { email, password, confirmPassword } = req.body;
 
     if (!email || !password || !confirmPassword) {
@@ -31,8 +30,7 @@ exports.registerUser = async (req, res) => {
     }
 };
 
-// Login User
-exports.loginUser = async (req, res) => {
+export const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     try {
@@ -53,9 +51,7 @@ exports.loginUser = async (req, res) => {
     }
 };
 
-// Forgot Password
-// Forgot Password
-exports.forgotPassword = async (req, res) => {
+export const forgotPassword = async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
@@ -77,8 +73,7 @@ exports.forgotPassword = async (req, res) => {
     }
 };
 
-// Reset Password
-exports.resetPassword = async (req, res) => {
+export const resetPassword = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {

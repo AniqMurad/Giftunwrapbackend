@@ -6,6 +6,8 @@ import bodyParser from 'body-parser';
 import authRoutes from './routes/authRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import messageRoutes from './routes/messagesRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+// import orderRoutes from './routes/orderRoutes.js';
 
 dotenv.config();
 
@@ -24,6 +26,8 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/users', userRoutes);
+// app.use('/api/orders', orderRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {

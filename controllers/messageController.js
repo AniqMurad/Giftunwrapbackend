@@ -1,8 +1,6 @@
-const Message = require('../models/Message');
+import Message from '../models/Message.js';
 
-// @desc    Create a new contact message
-// @route   POST /api/messages
-exports.createMessage = async (req, res) => {
+export const createMessage = async (req, res) => {
     try {
         const { name, email, content } = req.body;
 
@@ -19,9 +17,7 @@ exports.createMessage = async (req, res) => {
     }
 };
 
-// @desc    Get all contact messages
-// @route   GET /api/messages
-exports.getAllMessages = async (req, res) => {
+export const getAllMessages = async (req, res) => {
     try {
         const messages = await Message.find().sort({ createdAt: -1 });
         res.status(200).json(messages);
