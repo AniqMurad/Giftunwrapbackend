@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import authRoutes from './routes/authRoutes.js';
+import productRoutes from './routes/productRoutes.js';
+import messageRoutes from './routes/messagesRoutes.js';
 
 dotenv.config();
 
@@ -19,7 +21,9 @@ app.get('/', (req, res) => {
 });
 
 // Use the auth routes
-app.use('/api/auth', authRoutes); 
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
