@@ -90,3 +90,27 @@ export const createProductCategory = async (req, res) => {
         res.status(400).json({ message: err.message });
     }
 };
+
+// Delete a single product by its ID from a category
+export const deleteProductById = async (req, res) => {
+    const productId = req.params.id;
+    try {
+      // Find the category document that contains the product
+      const categoryDoc = await Product.findOne({ 'products._id': productId });
+  
+      if (!categoryDoc) {
+        return res.status(404).json({ message: 'Product not found' });
+      }
+  
+      // Remove the product with productId from the products array
+      categoryDoc.products = categoryDoc.products.filter(p => p._id.toString() !== productId);
+  
+      await categoryDoc.save();
+  
+      res.status(200).json({ message: 'Product deleted successfully.' });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
+   
+  
