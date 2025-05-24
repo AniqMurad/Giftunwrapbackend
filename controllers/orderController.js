@@ -4,9 +4,6 @@ import Product from '../models/Product.js';
 
 export const createOrder = async (req, res) => {
     try {
-
-        const userId = req.user._id; 
-
         const {
             shippingInfo,
             paymentMethod,
@@ -89,7 +86,6 @@ export const createOrder = async (req, res) => {
         }
 
         const order = new Order({
-            user: userId,
             shippingAddress: shippingInfo,
             paymentDetails: {
                 method: paymentMethod,
@@ -123,24 +119,6 @@ export const getOrders = async (req, res) => {
     } catch (error) {
         console.error("Error fetching all orders:", error);
 
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-};
-
-export const getOrdersByUser = async (req, res) => {
-    try {
-        const userId = req.user._id; 
-
-        if (!userId) {
-            return res.status(401).json({ message: 'User not authenticated.' });
-        }
-
-        const orders = await Order.find({ user: userId }).sort({ createdAt: -1 });
-
-        res.json(orders);
-
-    } catch (error) {
-        console.error("Error fetching user orders:", error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
