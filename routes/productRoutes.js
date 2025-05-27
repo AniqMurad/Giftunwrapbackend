@@ -8,6 +8,7 @@ import {
   createMultipleProducts,
   createProductCategory,
   deleteProductById,
+  // searchProducts,
 } from '../controllers/productController.js';
 
 const router = express.Router();
@@ -20,5 +21,6 @@ router.delete('/delete', deleteAllProducts);
 router.post('/batch', createMultipleProducts);
 router.post('/multipleproductcategory', createProductCategory); 
 router.delete('/:id', deleteProductById);
+// router.get('/search/query', searchProducts);
 
 export default router;

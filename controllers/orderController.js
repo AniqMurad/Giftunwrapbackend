@@ -5,19 +5,22 @@ import Product from '../models/Product.js';
 export const createOrder = async (req, res) => {
     try {
         const {
+            userId,               // <-- Add this here
             shippingInfo,
             paymentMethod,
             cardDetails,
-            orderItems 
+            orderItems
         } = req.body;
 
+        /* if (!userId) {
+            return res.status(400).json({ message: 'User ID is required.' });
+        } */
+
         if (!shippingInfo || !paymentMethod || !orderItems || orderItems.length === 0) {
-             res.status(400).json({ message: 'Missing required order data (shipping, payment, or items).' });
-             return;
+            return res.status(400).json({ message: 'Missing required order data (shipping, payment, or items).' });
         }
-         if (!shippingInfo.firstName || !shippingInfo.lastName || !shippingInfo.email || !shippingInfo.phone || !shippingInfo.street || !shippingInfo.city || !shippingInfo.postalCode || !shippingInfo.country || !shippingInfo.state) {
-             res.status(400).json({ message: 'Missing required shipping information fields.' });
-             return;
+        if (!shippingInfo.firstName || !shippingInfo.lastName || !shippingInfo.email || !shippingInfo.phone || !shippingInfo.street || !shippingInfo.city || !shippingInfo.postalCode || !shippingInfo.country || !shippingInfo.state) {
+            return res.status(400).json({ message: 'Missing required shipping information fields.' });
         }
 
         let calculatedSubtotal = 0;
@@ -25,34 +28,26 @@ export const createOrder = async (req, res) => {
 
         for (const item of orderItems) {
             if (!item.category || item.id === undefined || !item.quantity || item.price === undefined) {
-                 res.status(400).json({ message: `Invalid item data provided.` });
-                 return;
+                return res.status(400).json({ message: `Invalid item data provided.` });
             }
             if (item.quantity <= 0) {
-                 res.status(400).json({ message: `Invalid quantity for item ${item.name}` });
-                 return;
+                return res.status(400).json({ message: `Invalid quantity for item ${item.name}` });
             }
 
             const productCategoryDoc = await Product.findOne({ category: item.category });
-
             if (!productCategoryDoc) {
-                 res.status(404).json({ message: `Product category "${item.category}" not found.` });
-                 return;
+                return res.status(404).json({ message: `Product category "${item.category}" not found.` });
             }
 
             const product = productCategoryDoc.products.find(p => p.id === item.id);
-
             if (!product) {
-                res.status(404).json({ message: `Product with ID ${item.id} in category "${item.category}" not found.` });
-                return;
+                return res.status(404).json({ message: `Product with ID ${item.id} in category "${item.category}" not found.` });
             }
 
-            const itemPrice = product.price; 
-
+            const itemPrice = product.price;
             if (item.price !== itemPrice) {
-                 console.warn(`Price mismatch for item ${item.name} (ID: ${item.id}). Frontend: ${item.price}, Backend: ${itemPrice}`);
+                console.warn(`Price mismatch for item ${item.name} (ID: ${item.id}). Frontend: ${item.price}, Backend: ${itemPrice}`);
             }
-
 
             calculatedSubtotal += itemPrice * item.quantity;
 
@@ -61,31 +56,27 @@ export const createOrder = async (req, res) => {
                 productId: item.id,
                 name: item.name,
                 quantity: item.quantity,
-                priceAtTimeOfOrder: itemPrice, 
-                imageUrl: product.images && product.images.length > 0 ? product.images[0] : null 
+                priceAtTimeOfOrder: itemPrice,
+                imageUrl: product.images && product.images.length > 0 ? product.images[0] : null
             });
         }
-         const calculatedShippingCost = calculatedSubtotal > 0 ? (calculatedSubtotal >= 130 ? 0 : 15) : 0;
 
-         const calculatedDiscountAmount = 0; 
-
-         const calculatedTotalAmount = calculatedSubtotal + calculatedShippingCost - calculatedDiscountAmount;
+        const calculatedShippingCost = calculatedSubtotal > 0 ? (calculatedSubtotal >= 130 ? 0 : 15) : 0;
+        const calculatedDiscountAmount = 0;
+        const calculatedTotalAmount = calculatedSubtotal + calculatedShippingCost - calculatedDiscountAmount;
 
         if (paymentMethod === 'creditCard') {
-             if (!cardDetails || !cardDetails.cardName || !cardDetails.cardNumber || !cardDetails.expiry || !cardDetails.cvv) {
-                 
-                 res.status(400).json({ message: 'Missing required credit card details.' });
-                 return;
-             }
+            if (!cardDetails || !cardDetails.cardName || !cardDetails.cardNumber || !cardDetails.expiry || !cardDetails.cvv) {
+                return res.status(400).json({ message: 'Missing required credit card details.' });
+            }
             console.log("Processing Credit Card Payment (Placeholder):", cardDetails);
-           
         } else if (paymentMethod === 'cod') {
         } else {
-             res.status(400).json({ message: 'Invalid payment method specified.' });
-             return;
+            return res.status(400).json({ message: 'Invalid payment method specified.' });
         }
 
         const order = new Order({
+            ...(userId && { user: userId }), // Only attach if provided
             shippingAddress: shippingInfo,
             paymentDetails: {
                 method: paymentMethod,
@@ -95,14 +86,13 @@ export const createOrder = async (req, res) => {
             orderItems: itemsForDatabase,
             subtotal: calculatedSubtotal,
             shippingCost: calculatedShippingCost,
-            discountAmount: calculatedDiscountAmount, 
+            discountAmount: calculatedDiscountAmount,
             totalAmount: calculatedTotalAmount,
             status: paymentMethod === 'creditCard' ? 'processing' : 'pending'
         });
 
         const createdOrder = await order.save();
-
-        res.status(201).json(createdOrder); 
+        res.status(201).json(createdOrder);
 
     } catch (error) {
         console.error("Error creating order:", error);
@@ -112,13 +102,19 @@ export const createOrder = async (req, res) => {
 
 export const getOrders = async (req, res) => {
     try {
-        const orders = await Order.find({})
+        const { userId } = req.query;  // optionally pass userId as query param
+
+        let orders;
+        if (userId) {
+            orders = await Order.find({ user: userId });
+        } else {
+            orders = await Order.find({});
+        }
 
         res.json(orders);
 
     } catch (error) {
-        console.error("Error fetching all orders:", error);
-
+        console.error("Error fetching orders:", error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };

@@ -113,4 +113,23 @@ export const deleteProductById = async (req, res) => {
     }
   };
    
+ /*  export const searchProducts = async (req, res) => {
+    const query = req.query.q?.trim().toLowerCase();
   
+    if (!query) return res.status(400).json({ message: "Search query is required" });
+  
+    try {
+      const results = await Product.find({
+        $or: [
+          { name: { $regex: query, $options: 'i' } },
+          { category: { $regex: query, $options: 'i' } },
+          { subcategory: { $regex: query, $options: 'i' } },
+          { tags: { $regex: query, $options: 'i' } }
+        ]
+      });
+  
+      res.status(200).json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Server Error", error: error.message });
+    }
+  }; */
