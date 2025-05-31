@@ -133,3 +133,31 @@ export const deleteOrderById = async (req, res) => {
         res.status(500).json({ message: 'Failed to delete order.', error: error.message });
     }
 };
+
+export const updateOrderStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Validate the incoming status
+        const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
+        if (!status || !validStatuses.includes(status)) {
+            return res.status(400).json({ message: 'Invalid or missing status provided.' });
+        }
+
+        const updatedOrder = await Order.findByIdAndUpdate(
+            id,
+            { status: status },
+            { new: true, runValidators: true } // `new: true` returns the updated document, `runValidators` ensures enum validation
+        );
+
+        if (!updatedOrder) {
+            return res.status(404).json({ message: 'Order not found.' });
+        }
+
+        res.status(200).json(updatedOrder);
+    } catch (error) {
+        console.error("Error updating order status:", error);
+        res.status(500).json({ message: 'Failed to update order status.', error: error.message });
+    }
+};
