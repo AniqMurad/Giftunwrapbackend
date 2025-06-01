@@ -36,7 +36,12 @@ export const getProductsByCategory = async (req, res) => {
 export const createProduct = async (req, res) => {
     const { name, description, price, image, category, tags } = req.body;
 
-    const newProduct = new Product({ name, description, price, image, category, tags });
+    const newProduct = new Product({
+        category,
+        products: [{
+            name, price, keyGift, subcategory, images, shortDescription, longDescription
+        }]
+    });
 
     try {
         await newProduct.save();
@@ -67,27 +72,37 @@ export const createMultipleProducts = async (req, res) => {
 };
 
 export const createProductCategory = async (req, res) => {
-    const { category, products } = req.body;
-
     try {
-        // Pehle check karo agar category already hai toh update kar do ya replace kar do (optional)
-        // Ya naya document create karo
-        const existing = await Product.findOne({ category });
-        if (existing) {
-            // update karna ho toh:
-            if (existing) {
-                existing.products.push(...products);  // products array ko append karo
-                await existing.save();
-                return res.status(200).json(existing);
-            }
+        const { category } = req.body;
+        // Parse the single product data sent from frontend
+        const productData = JSON.parse(req.body.products)[0]; // Get the first (and only) product from the array
+
+        const uploadedUrls = req.files.map(file => file.path); // URLs from multer-cloudinary
+
+        // Assign all uploaded URLs to this single product
+        productData.images = uploadedUrls;
+
+        // Try to find if category already exists
+        const existingCategory = await Product.findOne({ category });
+
+        if (existingCategory) {
+            // Append the new product to existing category
+            existingCategory.products.push(productData);
+            await existingCategory.save();
+            return res.status(200).json({ message: 'Product added to existing category', data: existingCategory });
         }
 
-        // Nahi toh naya banado
-        const newCategory = new Product({ category, products });
+        // Else create new category with the product
+        const newCategory = new Product({
+            category,
+            products: [productData], // Wrap the single product in an array
+        });
+
         await newCategory.save();
-        res.status(201).json(newCategory);
+        res.status(201).json({ message: 'New category created with product', data: newCategory });
     } catch (err) {
-        res.status(400).json({ message: err.message });
+        console.error('Upload error:', err);
+        res.status(500).json({ message: 'Failed to upload product', error: err.message });
     }
 };
 
@@ -95,41 +110,41 @@ export const createProductCategory = async (req, res) => {
 export const deleteProductById = async (req, res) => {
     const productId = req.params.id;
     try {
-      // Find the category document that contains the product
-      const categoryDoc = await Product.findOne({ 'products._id': productId });
-  
-      if (!categoryDoc) {
-        return res.status(404).json({ message: 'Product not found' });
-      }
-  
-      // Remove the product with productId from the products array
-      categoryDoc.products = categoryDoc.products.filter(p => p._id.toString() !== productId);
-  
-      await categoryDoc.save();
-  
-      res.status(200).json({ message: 'Product deleted successfully.' });
+        // Find the category document that contains the product
+        const categoryDoc = await Product.findOne({ 'products._id': productId });
+
+        if (!categoryDoc) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        // Remove the product with productId from the products array
+        categoryDoc.products = categoryDoc.products.filter(p => p._id.toString() !== productId);
+
+        await categoryDoc.save();
+
+        res.status(200).json({ message: 'Product deleted successfully.' });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+        res.status(500).json({ message: error.message });
     }
-  };
-   
- /*  export const searchProducts = async (req, res) => {
-    const query = req.query.q?.trim().toLowerCase();
-  
-    if (!query) return res.status(400).json({ message: "Search query is required" });
-  
-    try {
-      const results = await Product.find({
-        $or: [
-          { name: { $regex: query, $options: 'i' } },
-          { category: { $regex: query, $options: 'i' } },
-          { subcategory: { $regex: query, $options: 'i' } },
-          { tags: { $regex: query, $options: 'i' } }
-        ]
-      });
-  
-      res.status(200).json(results);
-    } catch (error) {
-      res.status(500).json({ message: "Server Error", error: error.message });
-    }
-  }; */
+};
+
+/*  export const searchProducts = async (req, res) => {
+   const query = req.query.q?.trim().toLowerCase();
+ 
+   if (!query) return res.status(400).json({ message: "Search query is required" });
+ 
+   try {
+     const results = await Product.find({
+       $or: [
+         { name: { $regex: query, $options: 'i' } },
+         { category: { $regex: query, $options: 'i' } },
+         { subcategory: { $regex: query, $options: 'i' } },
+         { tags: { $regex: query, $options: 'i' } }
+       ]
+     });
+ 
+     res.status(200).json(results);
+   } catch (error) {
+     res.status(500).json({ message: "Server Error", error: error.message });
+   }
+ }; */
