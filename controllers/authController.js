@@ -3,9 +3,9 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 export const registerUser = async (req, res) => {
-    const { email, password, confirmPassword } = req.body;
+    const { email, password, confirmPassword, name, phoneNumber } = req.body;
 
-    if (!email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword || !name || !phoneNumber) {
         return res.status(400).json({ message: 'All fields are required' });
     }
 
@@ -20,7 +20,7 @@ export const registerUser = async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ email, password: hashedPassword });
+        const newUser = new User({ email, password: hashedPassword, name, phoneNumber });
 
         await newUser.save();
         res.status(201).json({ message: 'User registered successfully' });
@@ -29,27 +29,6 @@ export const registerUser = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
-
-/* export const loginUser = async (req, res) => {
-    const { email, password } = req.body;
-
-    try {
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-
-        const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ message: 'Login successful', token });
-    } catch (err) {
-        res.status(500).json({ message: 'Server error' });
-    }
-}; */
 
 export const loginUser = async (req, res) => {
     const { email, password } = req.body;
@@ -66,7 +45,7 @@ export const loginUser = async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user._id, email: user.email }, // payload
+            { id: user._id, email: user.email, name: user.name, phoneNumber: user.phoneNumber }, // payload
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
