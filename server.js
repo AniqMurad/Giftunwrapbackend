@@ -8,6 +8,7 @@ import productRoutes from './routes/productRoutes.js';
 import messageRoutes from './routes/messagesRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
