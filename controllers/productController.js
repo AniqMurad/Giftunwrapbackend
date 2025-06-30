@@ -1,6 +1,7 @@
 import Product from '../models/Product.js';
+import mongoose from 'mongoose';
+import User from '../models/User.js';
 
-// Get all products
 export const getAllProducts = async (req, res) => {
     try {
         const products = await Product.find();
@@ -10,7 +11,6 @@ export const getAllProducts = async (req, res) => {
     }
 };
 
-// Get product by ID
 export const getProductById = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
@@ -21,10 +21,8 @@ export const getProductById = async (req, res) => {
     }
 };
 
-// Get products by category
 export const getProductsByCategory = async (req, res) => {
     try {
-        // Use 'category' instead of 'categoryId'
         const products = await Product.find({ category: req.params.category });
         res.json(products);
     } catch (err) {
@@ -61,7 +59,7 @@ export const deleteAllProducts = async (req, res) => {
 };
 
 export const createMultipleProducts = async (req, res) => {
-    const products = req.body.products;  // array expected
+    const products = req.body.products;
 
     try {
         const result = await Product.insertMany(products);
@@ -74,28 +72,23 @@ export const createMultipleProducts = async (req, res) => {
 export const createProductCategory = async (req, res) => {
     try {
         const { category } = req.body;
-        // Parse the single product data sent from frontend
-        const productData = JSON.parse(req.body.products)[0]; // Get the first (and only) product from the array
+        const productData = JSON.parse(req.body.products)[0];
 
-        const uploadedUrls = req.files.map(file => file.path); // URLs from multer-cloudinary
+        const uploadedUrls = req.files.map(file => file.path);
 
-        // Assign all uploaded URLs to this single product
         productData.images = uploadedUrls;
 
-        // Try to find if category already exists
         const existingCategory = await Product.findOne({ category });
 
         if (existingCategory) {
-            // Append the new product to existing category
             existingCategory.products.push(productData);
             await existingCategory.save();
             return res.status(200).json({ message: 'Product added to existing category', data: existingCategory });
         }
 
-        // Else create new category with the product
         const newCategory = new Product({
             category,
-            products: [productData], // Wrap the single product in an array
+            products: [productData],
         });
 
         await newCategory.save();
@@ -106,18 +99,15 @@ export const createProductCategory = async (req, res) => {
     }
 };
 
-// Delete a single product by its ID from a category
 export const deleteProductById = async (req, res) => {
     const productId = req.params.id;
     try {
-        // Find the category document that contains the product
         const categoryDoc = await Product.findOne({ 'products._id': productId });
 
         if (!categoryDoc) {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        // Remove the product with productId from the products array
         categoryDoc.products = categoryDoc.products.filter(p => p._id.toString() !== productId);
 
         await categoryDoc.save();
@@ -128,23 +118,145 @@ export const deleteProductById = async (req, res) => {
     }
 };
 
-/*  export const searchProducts = async (req, res) => {
-   const query = req.query.q?.trim().toLowerCase();
- 
-   if (!query) return res.status(400).json({ message: "Search query is required" });
- 
-   try {
-     const results = await Product.find({
-       $or: [
-         { name: { $regex: query, $options: 'i' } },
-         { category: { $regex: query, $options: 'i' } },
-         { subcategory: { $regex: query, $options: 'i' } },
-         { tags: { $regex: query, $options: 'i' } }
-       ]
-     });
- 
-     res.status(200).json(results);
-   } catch (error) {
-     res.status(500).json({ message: "Server Error", error: error.message });
-   }
- }; */
+export const addProductReview = async (req, res) => {
+    const { productId } = req.params;
+    const { userId, rating, comment } = req.body;
+
+    console.log('Received productId (NUMERIC):', productId);
+    console.log('Received userId:', userId);
+    console.log('Received rating:', rating);
+    console.log('Received comment:', comment);
+
+    const numericProductId = Number(productId);
+
+    if (isNaN(numericProductId)) {
+        return res.status(400).json({ message: 'Invalid product ID format. Expected a number.' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID format.' });
+    }
+    if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+        return res.status(400).json({ message: 'Rating must be a number between 1 and 5.' });
+    }
+    if (!comment || typeof comment !== 'string' || comment.trim().length === 0) {
+        return res.status(400).json({ message: 'Comment cannot be empty.' });
+    }
+
+    try {
+        const categoryDoc = await Product.findOne({ 'products.id': numericProductId });
+
+        if (!categoryDoc) {
+            return res.status(404).json({ message: 'Product not found in any category.' });
+        }
+
+        const product = categoryDoc.products.find(p => p.id === numericProductId);
+
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found within its category (numeric ID mismatch).' });
+        }
+
+        const newReview = {
+            userId: new mongoose.Types.ObjectId(userId),
+            rating,
+            comment: comment.trim(),
+            createdAt: new Date()
+        };
+
+        product.reviews.push(newReview);
+
+        await categoryDoc.save();
+
+        res.status(201).json({ message: 'Review added successfully!', review: newReview });
+    } catch (err) {
+        console.error('Error adding review:', err);
+        res.status(500).json({ message: 'Failed to add review', error: err.message });
+    }
+};
+
+export const getAllReviews = async (req, res) => {
+    try {
+        console.log('Fetching all products...');
+        const allProducts = await Product.find({});
+        console.log(`Found ${allProducts.length} product categories.`);
+
+        let allReviews = [];
+        for (const categoryDoc of allProducts) {
+            console.log(`Processing category: ${categoryDoc.category}`);
+            for (const product of categoryDoc.products) {
+                console.log(`Processing product: ${product.name} (ID: ${product.id})`);
+                if (product.reviews && product.reviews.length > 0) {
+                    console.log(`Found ${product.reviews.length} reviews for this product.`);
+                    for (const review of product.reviews) {
+                        console.log(`Attempting to fetch user for review ID: ${review._id}`);
+                        const user = await User.findById(review.userId).select('name email');
+                        console.log(`User fetched: ${user ? user.email : 'None'}`);
+                        allReviews.push({
+                            _id: review._id,
+                            productId: product.id,
+                            productName: product.name,
+                            productCategory: categoryDoc.category,
+                            userId: review.userId,
+                            rating: review.rating,
+                            comment: review.comment,
+                            createdAt: review.createdAt,
+                            user: user ? { name: user.name, email: user.email } : null,
+                        });
+                    }
+                }
+            }
+        }
+        console.log(`Total reviews collected: ${allReviews.length}`);
+        res.status(200).json(allReviews);
+    } catch (err) {
+        console.error('SERVER ERROR fetching all reviews:', err);
+        console.error("❌ Error in getAllReviews:", error);
+        res.status(500).json({ message: 'Failed to fetch reviews', error: err.message, stack: err.stack }); // Include stack for debugging
+    }
+};
+
+export const deleteProductReview = async (req, res) => {
+    const { reviewId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+        return res.status(400).json({ message: 'Invalid review ID format.' });
+    }
+
+    try {
+        const categoryDoc = await Product.findOne({
+            'products.reviews._id': new mongoose.Types.ObjectId(reviewId)
+        });
+
+        if (!categoryDoc) {
+            return res.status(404).json({ message: 'Review not found in any product.' });
+        }
+
+        let productFound = false;
+        for (const product of categoryDoc.products) {
+            const reviewIndex = product.reviews.findIndex(r => r._id.toString() === reviewId);
+            if (reviewIndex > -1) {
+                product.reviews.splice(reviewIndex, 1);
+                productFound = true;
+
+                product.numReviews = product.reviews.length;
+                if (product.reviews.length > 0) {
+                    product.rating = product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length;
+                } else {
+                    product.rating = 0;
+                }
+
+                break;
+            }
+        }
+
+        if (!productFound) {
+            return res.status(404).json({ message: 'Review found in category, but not in product list. (Internal error)' });
+        }
+
+        await categoryDoc.save();
+
+        res.status(200).json({ message: 'Review deleted successfully!' });
+    } catch (error) {
+        console.error('Error deleting review:', error);
+        res.status(500).json({ message: 'Failed to delete review', error: error.message });
+    }
+};
