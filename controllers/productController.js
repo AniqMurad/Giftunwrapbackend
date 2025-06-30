@@ -11,7 +11,7 @@ export const getAllProducts = async (req, res) => {
     }
 };
 
-export const getProductById = async (req, res) => {
+/* export const getProductById = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
         if (!product) return res.status(404).json({ message: 'Product not found' });
@@ -19,19 +19,19 @@ export const getProductById = async (req, res) => {
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
-};
+}; */
 
-export const getProductsByCategory = async (req, res) => {
+/* export const getProductsByCategory = async (req, res) => {
     try {
         const products = await Product.find({ category: req.params.category });
         res.json(products);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
-};
+}; */
 
 // Create a new product
-export const createProduct = async (req, res) => {
+/* export const createProduct = async (req, res) => {
     const { name, description, price, image, category, tags } = req.body;
 
     const newProduct = new Product({
@@ -47,18 +47,18 @@ export const createProduct = async (req, res) => {
     } catch (err) {
         res.status(400).json({ message: err.message });
     }
-};
+}; */
 
-export const deleteAllProducts = async (req, res) => {
+/* export const deleteAllProducts = async (req, res) => {
     try {
         await Product.deleteMany({});
         res.status(200).send("All products deleted");
     } catch (error) {
         res.status(500).send("Error deleting products");
     }
-};
+}; */
 
-export const createMultipleProducts = async (req, res) => {
+/* export const createMultipleProducts = async (req, res) => {
     const products = req.body.products;
 
     try {
@@ -67,7 +67,7 @@ export const createMultipleProducts = async (req, res) => {
     } catch (err) {
         res.status(400).json({ message: err.message });
     }
-};
+}; */
 
 export const createProductCategory = async (req, res) => {
     try {
