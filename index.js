@@ -1,9 +1,8 @@
-// server.js
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import bodyParser from 'body-parser'; // Note: express.json() is generally preferred over bodyParser.json() for modern Express apps
+import bodyParser from 'body-parser';
 import authRoutes from './routes/authRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import messageRoutes from './routes/messagesRoutes.js';
