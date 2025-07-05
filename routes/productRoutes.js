@@ -7,6 +7,7 @@ import {
     addProductReview,
     getAllReviews,      
     deleteProductReview, 
+    deleteAllProducts,
 } from '../controllers/productController.js';
 import upload from '../middleware/upload.js'; 
 
@@ -21,7 +22,7 @@ router.get('/', getAllProducts);
 // router.get('/:id', getProductById); 
 // router.get('/category/:category', getProductsByCategory);
 // router.post('/', createProduct);
-// router.delete('/delete', deleteAllProducts);
+router.delete('/delete', deleteAllProducts);
 // router.post('/batch', createMultipleProducts);
 
 // posting a product category with images on admin portal
