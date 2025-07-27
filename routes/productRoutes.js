@@ -8,6 +8,7 @@ import {
     getAllReviews,      
     deleteProductReview, 
     deleteAllProducts,
+    updateProductById,
 } from '../controllers/productController.js';
 import upload from '../middleware/upload.js'; 
 
@@ -19,17 +20,15 @@ router.get('/reviews', getAllReviews);
 // gets all products on admin portal
 router.get('/', getAllProducts);
 
-// router.get('/:id', getProductById); 
-// router.get('/category/:category', getProductsByCategory);
-// router.post('/', createProduct);
 router.delete('/delete', deleteAllProducts);
-// router.post('/batch', createMultipleProducts);
 
 // posting a product category with images on admin portal
 router.post('/multipleproductcategory', upload.array('images', 4), createProductCategory);
 
 // deleting a product by id from admin portal
 router.delete('/:id', deleteProductById);
+
+router.put('/:id', upload.array('images', 4), updateProductById);
 
 // posting review API from order history page
 router.post('/:productId/reviews', addProductReview);
