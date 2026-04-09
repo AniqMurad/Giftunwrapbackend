@@ -1,6 +1,17 @@
 import Product from "../models/Product.js";
 import mongoose from "mongoose";
 import User from "../models/User.js";
+import { getNextProductId } from "../utils/getNextProductId.js";
+import Counter from "../models/Counter.js";
+
+export const resetProductCounter = async (req, res) => {
+    try {
+        await Counter.deleteOne({ name: "productId" });
+        res.status(200).json({ message: "Product counter reset successfully" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
 
 export const getAllProducts = async (req, res) => {
     try {
@@ -75,20 +86,21 @@ export const createProductCategory = async (req, res) => {
         const productData = JSON.parse(req.body.products)[0];
 
         const uploadedUrls = req.files.map((file) => file.path);
-
         productData.images = uploadedUrls;
+
+        // ✅ AUTO GLOBAL ID HERE
+        productData.id = await getNextProductId();
 
         const existingCategory = await Product.findOne({ category });
 
         if (existingCategory) {
             existingCategory.products.push(productData);
             await existingCategory.save();
-            return res
-                .status(200)
-                .json({
-                    message: "Product added to existing category",
-                    data: existingCategory,
-                });
+
+            return res.status(200).json({
+                message: "Product added to existing category",
+                data: existingCategory,
+            });
         }
 
         const newCategory = new Product({
@@ -97,17 +109,18 @@ export const createProductCategory = async (req, res) => {
         });
 
         await newCategory.save();
-        res
-            .status(201)
-            .json({
-                message: "New category created with product",
-                data: newCategory,
-            });
+
+        res.status(201).json({
+            message: "New category created with product",
+            data: newCategory,
+        });
+
     } catch (err) {
         console.error("Upload error:", err);
-        res
-            .status(500)
-            .json({ message: "Failed to upload product", error: err.message });
+        res.status(500).json({
+            message: "Failed to upload product",
+            error: err.message,
+        });
     }
 };
 
@@ -165,7 +178,7 @@ export const addProductReview = async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-        
+
         const categoryDoc = await Product.findOne({
             "products.id": numericProductId,
         });

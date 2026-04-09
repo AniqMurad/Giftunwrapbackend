@@ -8,6 +8,7 @@ import {
     getAllReviews,      
     deleteProductReview, 
     deleteAllProducts,
+    resetProductCounter
 } from '../controllers/productController.js';
 import upload from '../middleware/upload.js'; 
 
@@ -15,6 +16,8 @@ const router = express.Router();
 
 // gets all reviews on admin portal
 router.get('/reviews', getAllReviews);
+
+router.post('/reset-counter', resetProductCounter);
 
 // gets all products on admin portal
 router.get('/', getAllProducts);
