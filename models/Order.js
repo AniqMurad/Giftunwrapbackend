@@ -34,6 +34,24 @@ const orderSchema = new mongoose.Schema({
     shippingAddress: { type: shippingAddressSchema, required: true },
     paymentDetails: { type: paymentDetailsSchema, required: true },
     orderItems: { type: [orderItemSchema], required: true },
+    
+    // Gift Box specific fields
+    isGiftBox: { type: Boolean, default: false },
+    selectedBox: {
+        id: { type: Number },
+        name: { type: String },
+        size: { type: String },
+        price: { type: Number },
+        image: { type: String }
+    },
+    selectedCard: {
+        id: { type: Number },
+        name: { type: String },
+        design: { type: String },
+        image: { type: String }
+    },
+    cardMessage: { type: String },
+    
     subtotal: { type: Number, required: true },
     shippingCost: { type: Number, required: true },
     discountAmount: { type: Number, default: 0 },

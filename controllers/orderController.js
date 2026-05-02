@@ -1,21 +1,22 @@
 // controllers/orderController.js
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import GiftBoxItem from "../models/GiftBoxItem.js";
 import sendOrderEmail from "../utils/sendOrderEmail.js";
 
 export const createOrder = async (req, res) => {
   try {
     const {
-      userId, // <-- Add this here
+      userId,
       shippingInfo,
       paymentMethod,
       cardDetails,
       orderItems,
+      giftBoxOrder, // Flag to indicate if this is a gift box order
+      selectedBox,
+      selectedCard,
+      cardMessage,
     } = req.body;
-
-    /* if (!userId) {
-            return res.status(400).json({ message: 'User ID is required.' });
-        } */
 
     if (
       !shippingInfo ||
@@ -48,63 +49,109 @@ export const createOrder = async (req, res) => {
     let calculatedSubtotal = 0;
     const itemsForDatabase = [];
 
-    for (const item of orderItems) {
-      if (
-        !item.category ||
-        item.id === undefined ||
-        !item.quantity ||
-        item.price === undefined
-      ) {
-        return res.status(400).json({ message: `Invalid item data provided.` });
-      }
-      if (item.quantity <= 0) {
-        return res
-          .status(400)
-          .json({ message: `Invalid quantity for item ${item.name}` });
+    // Handle gift box orders differently
+    if (giftBoxOrder) {
+      for (const item of orderItems) {
+        if (
+          item.id === undefined ||
+          !item.quantity ||
+          item.price === undefined
+        ) {
+          return res.status(400).json({ message: `Invalid item data provided.` });
+        }
+        if (item.quantity <= 0) {
+          return res
+            .status(400)
+            .json({ message: `Invalid quantity for item ${item.name}` });
+        }
+
+        // Verify gift box item exists
+        const giftBoxItem = await GiftBoxItem.findOne({ id: item.id });
+        if (!giftBoxItem) {
+          return res
+            .status(404)
+            .json({
+              message: `Gift box item with ID ${item.id} not found.`,
+            });
+        }
+
+        const itemPrice = giftBoxItem.price;
+        calculatedSubtotal += itemPrice * item.quantity;
+
+        itemsForDatabase.push({
+          productCategory: 'giftbox-item',
+          productId: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          priceAtTimeOfOrder: itemPrice,
+          imageUrl: item.image || giftBoxItem.image,
+        });
       }
 
-      const productCategoryDoc = await Product.findOne({
-        category: item.category,
-      });
-      if (!productCategoryDoc) {
-        return res
-          .status(404)
-          .json({ message: `Product category "${item.category}" not found.` });
+      // Add box price to subtotal if selected
+      if (selectedBox && selectedBox.price) {
+        calculatedSubtotal += selectedBox.price;
       }
+    } else {
+      // Regular product order
+      for (const item of orderItems) {
+        if (
+          !item.category ||
+          item.id === undefined ||
+          !item.quantity ||
+          item.price === undefined
+        ) {
+          return res.status(400).json({ message: `Invalid item data provided.` });
+        }
+        if (item.quantity <= 0) {
+          return res
+            .status(400)
+            .json({ message: `Invalid quantity for item ${item.name}` });
+        }
 
-      const product = productCategoryDoc.products.find((p) => p.id === item.id);
-      if (!product) {
-        return res
-          .status(404)
-          .json({
-            message: `Product with ID ${item.id} in category "${item.category}" not found.`,
-          });
+        const productCategoryDoc = await Product.findOne({
+          category: item.category,
+        });
+        if (!productCategoryDoc) {
+          return res
+            .status(404)
+            .json({ message: `Product category "${item.category}" not found.` });
+        }
+
+        const product = productCategoryDoc.products.find((p) => p.id === item.id);
+        if (!product) {
+          return res
+            .status(404)
+            .json({
+              message: `Product with ID ${item.id} in category "${item.category}" not found.`,
+            });
+        }
+
+        const itemPrice = product.price;
+        if (item.price !== itemPrice) {
+          console.warn(
+            `Price mismatch for item ${item.name} (ID: ${item.id}). Frontend: ${item.price}, Backend: ${itemPrice}`
+          );
+        }
+
+        calculatedSubtotal += itemPrice * item.quantity;
+
+        itemsForDatabase.push({
+          productCategory: item.category,
+          productId: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          priceAtTimeOfOrder: itemPrice,
+          imageUrl:
+            product.images && product.images.length > 0
+              ? product.images[0]
+              : null,
+        });
       }
-
-      const itemPrice = product.price;
-      if (item.price !== itemPrice) {
-        console.warn(
-          `Price mismatch for item ${item.name} (ID: ${item.id}). Frontend: ${item.price}, Backend: ${itemPrice}`
-        );
-      }
-
-      calculatedSubtotal += itemPrice * item.quantity;
-
-      itemsForDatabase.push({
-        productCategory: item.category,
-        productId: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        priceAtTimeOfOrder: itemPrice,
-        imageUrl:
-          product.images && product.images.length > 0
-            ? product.images[0]
-            : null,
-      });
     }
 
     const calculatedShippingCost =
-      calculatedSubtotal > 0 ? (calculatedSubtotal >= 130 ? 0 : 15) : 0;
+      calculatedSubtotal > 0 ? (calculatedSubtotal >= 10000 ? 0 : 350) : 0;
     const calculatedDiscountAmount = 0;
     const calculatedTotalAmount =
       calculatedSubtotal + calculatedShippingCost - calculatedDiscountAmount;
@@ -129,8 +176,8 @@ export const createOrder = async (req, res) => {
         .json({ message: "Invalid payment method specified." });
     }
 
-    const order = new Order({
-      ...(userId && { user: userId }), // Only attach if provided
+    const orderData = {
+      ...(userId && { user: userId }),
       shippingAddress: shippingInfo,
       paymentDetails: {
         method: paymentMethod,
@@ -147,7 +194,34 @@ export const createOrder = async (req, res) => {
       discountAmount: calculatedDiscountAmount,
       totalAmount: calculatedTotalAmount,
       status: paymentMethod === "creditCard" ? "processing" : "pending",
-    });
+    };
+
+    // Add gift box specific fields if it's a gift box order
+    if (giftBoxOrder) {
+      orderData.isGiftBox = true;
+      if (selectedBox) {
+        orderData.selectedBox = {
+          id: selectedBox.id,
+          name: selectedBox.name,
+          size: selectedBox.size,
+          price: selectedBox.price,
+          image: selectedBox.image,
+        };
+      }
+      if (selectedCard) {
+        orderData.selectedCard = {
+          id: selectedCard.id,
+          name: selectedCard.name,
+          design: selectedCard.design,
+          image: selectedCard.image,
+        };
+      }
+      if (cardMessage) {
+        orderData.cardMessage = cardMessage;
+      }
+    }
+
+    const order = new Order(orderData);
 
     const createdOrder = await order.save();
     try {

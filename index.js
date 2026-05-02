@@ -8,13 +8,17 @@ import productRoutes from './routes/productRoutes.js';
 import messageRoutes from './routes/messagesRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import giftBoxItemRoutes from './routes/giftBoxItemRoutes.js';
+import boxRoutes from './routes/boxRoutes.js';
+import cardRoutes from './routes/cardRoutes.js';
 
 dotenv.config();
 
 const app = express();
 
 app.use(cors());
-app.use(express.json()); 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true })); 
 
 
 app.get('/', (req, res) => {
@@ -26,6 +30,9 @@ app.use('/api/products', productRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/gift-box-items', giftBoxItemRoutes);
+app.use('/api/boxes', boxRoutes);
+app.use('/api/cards', cardRoutes);
 
 const connectDB = async () => {
     try {
