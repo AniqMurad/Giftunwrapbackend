@@ -32,22 +32,16 @@ export const getBoxById = async (req, res) => {
 // Create new box (Admin)
 export const createBox = async (req, res) => {
     try {
-        console.log('Request body:', req.body);
-        console.log('Request file:', req.file);
-        
-        if (!req.body) {
+        const { name, size, price, capacity, color, description } = req.body;
+
+        // Validate required fields
+        if (!name || !size || !price || !capacity) {
             return res.status(400).json({ 
-                message: 'Request body is empty. Please check your form data submission.' 
+                message: 'Name, size, price, and capacity are required' 
             });
         }
-        
-        const { name, size, price, capacity, image: imageBodyValue, imageUrl, color, description } = req.body;
-        
-        // Accept either an uploaded file, the legacy image field, or imageUrl.
-        const image = req.file ? req.file.path : (imageBodyValue || imageUrl);
-        
-        // Validate required fields
-        if (!name || !size || !price || !capacity || !image) {
+
+        if (!req.file) {
             return res.status(400).json({ 
                 message: 'Name, size, price, capacity, and image are required' 
             });
@@ -61,9 +55,9 @@ export const createBox = async (req, res) => {
             id: nextId,
             name,
             size,
-            price,
+            price: Number(price),
             capacity,
-            image,
+            image: req.file.path,
             color,
             description
         });
@@ -81,18 +75,18 @@ export const updateBox = async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = { ...req.body };
-        
-        // Accept either a new file upload or the legacy image/imageUrl fields.
+
+        // Image can only be updated through multipart file upload.
+        delete updateData.image;
+
+        // If an image file is uploaded, replace the existing one.
         if (req.file) {
             updateData.image = req.file.path;
-        } else if (req.body.image) {
-            updateData.image = req.body.image;
-        } else if (req.body.imageUrl) {
-            updateData.image = req.body.imageUrl;
         }
-        
-        // Remove imageUrl from update data as it's not in the schema
-        delete updateData.imageUrl;
+
+        if (updateData.price !== undefined) {
+            updateData.price = Number(updateData.price);
+        }
 
         const box = await Box.findOneAndUpdate(
             { id: parseInt(id) },

@@ -32,22 +32,16 @@ export const getCardById = async (req, res) => {
 // Create new card (Admin)
 export const createCard = async (req, res) => {
     try {
-        console.log('Request body:', req.body);
-        console.log('Request file:', req.file);
-        
-        if (!req.body) {
+        const { name, design, color, description } = req.body;
+
+        // Validate required fields
+        if (!name || !design) {
             return res.status(400).json({ 
-                message: 'Request body is empty. Please check your form data submission.' 
+                message: 'Name and design are required' 
             });
         }
-        
-        const { name, design, image: imageBodyValue, imageUrl, color, description } = req.body;
-        
-        // Accept either an uploaded file, the legacy image field, or imageUrl.
-        const image = req.file ? req.file.path : (imageBodyValue || imageUrl);
-        
-        // Validate required fields
-        if (!name || !design || !image) {
+
+        if (!req.file) {
             return res.status(400).json({ 
                 message: 'Name, design, and image are required' 
             });
@@ -61,7 +55,7 @@ export const createCard = async (req, res) => {
             id: nextId,
             name,
             design,
-            image,
+            image: req.file.path,
             color,
             description
         });
@@ -79,18 +73,14 @@ export const updateCard = async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = { ...req.body };
-        
-        // Accept either a new file upload or the legacy image/imageUrl fields.
+
+        // Image can only be updated through multipart file upload.
+        delete updateData.image;
+
+        // If an image file is uploaded, replace the existing one.
         if (req.file) {
             updateData.image = req.file.path;
-        } else if (req.body.image) {
-            updateData.image = req.body.image;
-        } else if (req.body.imageUrl) {
-            updateData.image = req.body.imageUrl;
         }
-        
-        // Remove imageUrl from update data as it's not in the schema
-        delete updateData.imageUrl;
 
         const card = await Card.findOneAndUpdate(
             { id: parseInt(id) },

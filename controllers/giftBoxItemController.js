@@ -44,22 +44,14 @@ export const getItemById = async (req, res) => {
 // Create new gift box item (Admin)
 export const createItem = async (req, res) => {
     try {
-        console.log('Request body:', req.body);
-        console.log('Request file:', req.file);
-        
-        if (!req.body) {
-            return res.status(400).json({ 
-                message: 'Request body is empty. Please check your form data submission.' 
-            });
-        }
-        
-        const { name, price, category, image: imageBodyValue, imageUrl, description } = req.body;
-        
-        // Accept either an uploaded file, the legacy image field, or imageUrl.
-        const image = req.file ? req.file.path : (imageBodyValue || imageUrl);
-        
+        const { name, price, category, description } = req.body;
+
         // Validate required fields
-        if (!name || !price || !category || !image) {
+        if (!name || !price || !category) {
+            return res.status(400).json({ message: 'Name, price, and category are required' });
+        }
+
+        if (!req.file) {
             return res.status(400).json({ message: 'Name, price, category, and image are required' });
         }
 
@@ -70,9 +62,9 @@ export const createItem = async (req, res) => {
         const newItem = new GiftBoxItem({
             id: nextId,
             name,
-            price,
+            price: Number(price),
             category,
-            image,
+            image: req.file.path,
             description
         });
 
@@ -89,18 +81,18 @@ export const updateItem = async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = { ...req.body };
-        
-        // Accept either a new file upload or the legacy image/imageUrl fields.
+
+        // Image can only be updated through multipart file upload.
+        delete updateData.image;
+
+        // If an image file is uploaded, replace the existing one.
         if (req.file) {
             updateData.image = req.file.path;
-        } else if (req.body.image) {
-            updateData.image = req.body.image;
-        } else if (req.body.imageUrl) {
-            updateData.image = req.body.imageUrl;
         }
-        
-        // Remove imageUrl from update data as it's not in the schema
-        delete updateData.imageUrl;
+
+        if (updateData.price !== undefined) {
+            updateData.price = Number(updateData.price);
+        }
 
         const item = await GiftBoxItem.findOneAndUpdate(
             { id: parseInt(id) },
