@@ -6,6 +6,7 @@ const cardSchema = new mongoose.Schema({
     name: { type: String, required: true },
     design: { type: String, required: true }, // e.g., "Happy Birthday", "Thank You"
     image: { type: String, required: true },
+    color: { type: String, default: '#F5F5F5' },
     description: { type: String },
     inStock: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },

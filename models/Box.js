@@ -8,6 +8,7 @@ const boxSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     capacity: { type: String, required: true }, // e.g., "3-5 items"
     image: { type: String, required: true },
+    color: { type: String, default: '#F5DEB3' },
     description: { type: String },
     inStock: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },

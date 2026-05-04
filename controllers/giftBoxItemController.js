@@ -53,10 +53,10 @@ export const createItem = async (req, res) => {
             });
         }
         
-        const { name, price, category, imageUrl, description } = req.body;
+        const { name, price, category, image: imageBodyValue, imageUrl, description } = req.body;
         
-        // Get image from uploaded file or URL
-        const image = req.file ? req.file.path : imageUrl;
+        // Accept either an uploaded file, the legacy image field, or imageUrl.
+        const image = req.file ? req.file.path : (imageBodyValue || imageUrl);
         
         // Validate required fields
         if (!name || !price || !category || !image) {
@@ -90,9 +90,11 @@ export const updateItem = async (req, res) => {
         const { id } = req.params;
         const updateData = { ...req.body };
         
-        // If a new image file was uploaded, use it
+        // Accept either a new file upload or the legacy image/imageUrl fields.
         if (req.file) {
             updateData.image = req.file.path;
+        } else if (req.body.image) {
+            updateData.image = req.body.image;
         } else if (req.body.imageUrl) {
             updateData.image = req.body.imageUrl;
         }
