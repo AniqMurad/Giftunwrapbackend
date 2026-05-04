@@ -21,7 +21,6 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 
 
@@ -40,31 +39,37 @@ app.use('/api/boxes', boxRoutes);
 app.use('/api/cards', cardRoutes);
 
 const connectDB = async () => {
-    try {
-        const conn = await mongoose.connect(process.env.MONGO_URI, {
-            serverSelectionTimeoutMS: 5000, 
-            socketTimeoutMS: 45000, 
-            maxPoolSize: 10, 
-            minPoolSize: 5,  
-        });
-
-        console.log(`MongoDB Connected: ${conn.connection.host}`);
-
-        mongoose.connection.on('error', (err) => {
-            console.error('MongoDB connection error:', err);
-        });
-
-        mongoose.connection.on('reconnected', () => {
-            console.log('MongoDB reconnected!');
-        });
-
-    } catch (err) {
-        console.error(`Error connecting to MongoDB: ${err.message}`);
-        process.exit(1);
+    if (mongoose.connection.readyState === 1) {
+        return mongoose.connection;
     }
+
+    if (!process.env.MONGO_URI) {
+        throw new Error('MONGO_URI is not set. Configure it in environment variables.');
+    }
+
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
+        serverSelectionTimeoutMS: 10000,
+        socketTimeoutMS: 45000,
+        maxPoolSize: 10,
+        minPoolSize: 1,
+        family: 4,
+    });
+
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    return conn.connection;
 };
 
-connectDB();
+mongoose.connection.on('error', (err) => {
+    console.error('MongoDB connection error:', err.message);
+});
+
+mongoose.connection.on('reconnected', () => {
+    console.log('MongoDB reconnected!');
+});
+
+connectDB().catch((err) => {
+    console.error(`Initial MongoDB connection failed: ${err.message}`);
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
