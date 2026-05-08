@@ -39,6 +39,8 @@ const productSchema = new mongoose.Schema({
             images: [{ type: String }],
             shortDescription: { type: String },
             longDescription: { type: String },
+            metaTitle: { type: String },
+            metaDescription: { type: String },
             reviews: [reviewSchema] 
         }
     ]
