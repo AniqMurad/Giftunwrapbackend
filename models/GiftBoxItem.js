@@ -8,7 +8,16 @@ const giftBoxItemSchema = new mongoose.Schema({
     category: { 
         type: String, 
         required: true,
-        enum: ['drinkware', 'stationery', 'home', 'food', 'accessories', 'toys', 'beauty', 'other']
+        enum: [
+            'chocolates-snacks',
+            'flowers',
+            'customised-items',
+            'jewellery-accessories',
+            'fragrances',
+            'clothing',
+            'shoes',
+            'beauty-personal-care'
+        ]
     },
     image: { type: String, required: true },
     description: { type: String },
