@@ -12,6 +12,7 @@ import giftBoxItemRoutes from './routes/giftBoxItemRoutes.js';
 import boxRoutes from './routes/boxRoutes.js';
 import cardRoutes from './routes/cardRoutes.js';
 import quoteRoutes from './routes/quoteRoutes.js';
+import blogRoutes from './routes/blogRoutes.js';
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use('/api/gift-box-items', giftBoxItemRoutes);
 app.use('/api/boxes', boxRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/quotes', quoteRoutes);
+app.use('/api/blogs', blogRoutes);
 
 const connectDB = async () => {
     if (mongoose.connection.readyState === 1) {

@@ -34,7 +34,7 @@ const sendOrderEmail = async (to, name, orderId, orderItems, totalAmount) => {
       <h3>Order Summary:</h3>
       <ul>${itemsHtml}</ul>
       <p><strong>Total:</strong> PKR${totalAmount.toFixed(2)}</p>
-      <p>For any customizations, feel free to contact us at <strong> +92 313 0216931 </strong> via call or WhatsApp. Our team will also be reaching out to you shortly for confirmation or to discuss any customization requests.</p>
+      <p>For any customizations, feel free to contact us at <strong> +92 326 8927354 </strong> via call or WhatsApp. Our team will also be reaching out to you shortly for confirmation or to discuss any customization requests.</p>
       <br/>
       <p>Best regards,<br/>GiftUnwrap Team</p>
     </div>
