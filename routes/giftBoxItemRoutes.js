@@ -19,8 +19,8 @@ router.get('/category/:category', getItemsByCategory);
 router.get('/:id', getItemById);
 
 // Admin routes (you can add authentication middleware here)
-router.post('/', upload.single('image'), createItem);
-router.put('/:id', upload.single('image'), updateItem);
+router.post('/', upload.any(), createItem);
+router.put('/:id', upload.any(), updateItem);
 router.delete('/:id', deleteItem);
 router.patch('/:id/toggle-stock', toggleItemStock);
 
