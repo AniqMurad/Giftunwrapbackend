@@ -46,14 +46,34 @@ export const createItem = async (req, res) => {
     try {
         const { name, price, category, description } = req.body;
 
-        // Validate required fields
         if (!name || !price || !category) {
             return res.status(400).json({ message: 'Name, price, and category are required' });
         }
 
-        if (!req.file) {
+        // Build files map from upload.any()
+        const filesMap = {};
+        if (Array.isArray(req.files)) {
+            req.files.forEach(file => {
+                filesMap[file.fieldname] = file.path;
+            });
+        }
+
+        if (!filesMap['image']) {
             return res.status(400).json({ message: 'Name, price, category, and image are required' });
         }
+
+        // Parse color variants metadata
+        let colorVariantsMeta = [];
+        if (req.body.colorVariants) {
+            try { colorVariantsMeta = JSON.parse(req.body.colorVariants); } catch (e) {}
+        }
+
+        const colorVariants = colorVariantsMeta
+            .map((v, idx) => ({
+                color: v.color,
+                image: filesMap[`colorImage_${idx}`] || '',
+            }))
+            .filter(v => v.color && v.image);
 
         // Get the next ID
         const lastItem = await GiftBoxItem.findOne().sort({ id: -1 });
@@ -64,7 +84,8 @@ export const createItem = async (req, res) => {
             name,
             price: Number(price),
             category,
-            image: req.file.path,
+            image: filesMap['image'],
+            colorVariants,
             description
         });
 
@@ -77,21 +98,44 @@ export const createItem = async (req, res) => {
 };
 
 // Update gift box item (Admin)
+// Update gift box item (Admin)
 export const updateItem = async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = { ...req.body };
 
+        // Build files map from upload.any()
+        const filesMap = {};
+        if (Array.isArray(req.files)) {
+            req.files.forEach(file => {
+                filesMap[file.fieldname] = file.path;
+            });
+        }
+
         // Image can only be updated through multipart file upload.
         delete updateData.image;
+        delete updateData.colorVariants;
 
-        // If an image file is uploaded, replace the existing one.
-        if (req.file) {
-            updateData.image = req.file.path;
+        if (filesMap['image']) {
+            updateData.image = filesMap['image'];
         }
 
         if (updateData.price !== undefined) {
             updateData.price = Number(updateData.price);
+        }
+
+        // Handle color variants
+        if (req.body.colorVariants !== undefined) {
+            let colorVariantsMeta = [];
+            try { colorVariantsMeta = JSON.parse(req.body.colorVariants); } catch (e) {}
+
+            const existingItem = await GiftBoxItem.findOne({ id: parseInt(id) });
+            updateData.colorVariants = colorVariantsMeta
+                .map((v, idx) => ({
+                    color: v.color,
+                    image: filesMap[`colorImage_${idx}`] || existingItem?.colorVariants?.[idx]?.image || '',
+                }))
+                .filter(v => v.color && v.image);
         }
 
         const item = await GiftBoxItem.findOneAndUpdate(
