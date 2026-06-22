@@ -43,7 +43,7 @@ export const getBlogById = async (req, res) => {
 // Create new blog (Admin)
 export const createBlog = async (req, res) => {
     try {
-        const { title, subHeading, category, content, author } = req.body;
+        const { title, subHeading, category, content, author, metaTitle, metaDescription } = req.body;
 
         // Validate required fields
         if (!title || !subHeading || !category || !content) {
@@ -78,6 +78,8 @@ export const createBlog = async (req, res) => {
             mainImage: req.files.mainImage[0].path,
             content,
             contentImages,
+            metaTitle,
+            metaDescription,
             author: author || 'Admin',
             authorDate
         });
