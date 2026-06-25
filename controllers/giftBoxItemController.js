@@ -4,7 +4,7 @@ import GiftBoxItem from '../models/GiftBoxItem.js';
 // Get all gift box items
 export const getAllItems = async (req, res) => {
     try {
-        const items = await GiftBoxItem.find({ inStock: true }).sort({ createdAt: -1 });
+        const items = await GiftBoxItem.find({ inStock: true }).sort({ createdAt: -1 }).lean();
         res.status(200).json(items);
     } catch (error) {
         console.error('Error fetching gift box items:', error);
@@ -16,7 +16,7 @@ export const getAllItems = async (req, res) => {
 export const getItemsByCategory = async (req, res) => {
     try {
         const { category } = req.params;
-        const items = await GiftBoxItem.find({ category, inStock: true }).sort({ createdAt: -1 });
+        const items = await GiftBoxItem.find({ category, inStock: true }).sort({ createdAt: -1 }).lean();
         res.status(200).json(items);
     } catch (error) {
         console.error('Error fetching items by category:', error);
@@ -28,8 +28,8 @@ export const getItemsByCategory = async (req, res) => {
 export const getItemById = async (req, res) => {
     try {
         const { id } = req.params;
-        const item = await GiftBoxItem.findOne({ id: parseInt(id) });
-        
+        const item = await GiftBoxItem.findOne({ id: parseInt(id) }).lean();
+
         if (!item) {
             return res.status(404).json({ message: 'Item not found' });
         }
@@ -142,7 +142,7 @@ export const updateItem = async (req, res) => {
             { id: parseInt(id) },
             { ...updateData, updatedAt: Date.now() },
             { new: true }
-        );
+        ).lean();
 
         if (!item) {
             return res.status(404).json({ message: 'Item not found' });

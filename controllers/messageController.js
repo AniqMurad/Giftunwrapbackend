@@ -19,7 +19,7 @@ export const createMessage = async (req, res) => {
 
 export const getAllMessages = async (req, res) => {
     try {
-        const messages = await Message.find().sort({ createdAt: -1 });
+        const messages = await Message.find().sort({ createdAt: -1 }).lean();
         res.status(200).json(messages);
     } catch (error) {
         res.status(500).json({ message: 'Failed to retrieve messages.', error: error.message });

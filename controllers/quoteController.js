@@ -81,7 +81,8 @@ export const getAllQuotes = async (req, res) => {
     const quotes = await Quote.find(filter)
       .sort({ createdAt: -1 })
       .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .skip((page - 1) * limit)
+      .lean();
 
     const count = await Quote.countDocuments(filter);
 
@@ -107,7 +108,7 @@ export const getQuoteById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const quote = await Quote.findById(id);
+    const quote = await Quote.findById(id).lean();
 
     if (!quote) {
       return res.status(404).json({
@@ -148,7 +149,7 @@ export const updateQuoteStatus = async (req, res) => {
       id,
       { status, updatedAt: Date.now() },
       { new: true, runValidators: true }
-    );
+    ).lean();
 
     if (!quote) {
       return res.status(404).json({

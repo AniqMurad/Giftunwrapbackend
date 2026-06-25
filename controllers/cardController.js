@@ -4,7 +4,7 @@ import Card from '../models/Card.js';
 // Get all cards
 export const getAllCards = async (req, res) => {
     try {
-        const cards = await Card.find({ inStock: true }).sort({ createdAt: -1 });
+        const cards = await Card.find({ inStock: true }).sort({ createdAt: -1 }).lean();
         res.status(200).json(cards);
     } catch (error) {
         console.error('Error fetching cards:', error);
@@ -16,8 +16,8 @@ export const getAllCards = async (req, res) => {
 export const getCardById = async (req, res) => {
     try {
         const { id } = req.params;
-        const card = await Card.findOne({ id: parseInt(id) });
-        
+        const card = await Card.findOne({ id: parseInt(id) }).lean();
+
         if (!card) {
             return res.status(404).json({ message: 'Card not found' });
         }
@@ -86,7 +86,7 @@ export const updateCard = async (req, res) => {
             { id: parseInt(id) },
             { ...updateData, updatedAt: Date.now() },
             { new: true }
-        );
+        ).lean();
 
         if (!card) {
             return res.status(404).json({ message: 'Card not found' });

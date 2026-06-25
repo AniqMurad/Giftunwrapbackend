@@ -13,7 +13,7 @@ const blogSchema = new mongoose.Schema({
     metaDescription: { type: String },
     author: { type: String, default: 'Admin' },
     authorDate: { type: String },
-    published: { type: Boolean, default: true },
+    published: { type: Boolean, default: true, index: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });

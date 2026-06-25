@@ -30,7 +30,7 @@ const paymentDetailsSchema = new mongoose.Schema({
 });
 
 const orderSchema = new mongoose.Schema({
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
     shippingAddress: { type: shippingAddressSchema, required: true },
     paymentDetails: { type: paymentDetailsSchema, required: true },
     orderItems: { type: [orderItemSchema], required: true },
