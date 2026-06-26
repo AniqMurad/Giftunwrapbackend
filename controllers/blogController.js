@@ -4,7 +4,7 @@ import Blog from '../models/Blog.js';
 // Get all published blogs
 export const getAllBlogs = async (req, res) => {
     try {
-        const blogs = await Blog.find({ published: true }).sort({ createdAt: -1 });
+        const blogs = await Blog.find({ published: true }).sort({ createdAt: -1 }).lean();
         res.status(200).json(blogs);
     } catch (error) {
         console.error('Error fetching blogs:', error);
@@ -15,7 +15,7 @@ export const getAllBlogs = async (req, res) => {
 // Get all blogs (including unpublished - for admin)
 export const getAllBlogsAdmin = async (req, res) => {
     try {
-        const blogs = await Blog.find().sort({ createdAt: -1 });
+        const blogs = await Blog.find().sort({ createdAt: -1 }).lean();
         res.status(200).json(blogs);
     } catch (error) {
         console.error('Error fetching blogs:', error);
@@ -27,12 +27,12 @@ export const getAllBlogsAdmin = async (req, res) => {
 export const getBlogById = async (req, res) => {
     try {
         const { id } = req.params;
-        const blog = await Blog.findOne({ id: parseInt(id) });
-        
+        const blog = await Blog.findOne({ id: parseInt(id) }).lean();
+
         if (!blog) {
             return res.status(404).json({ message: 'Blog not found' });
         }
-        
+
         res.status(200).json(blog);
     } catch (error) {
         console.error('Error fetching blog:', error);
@@ -43,7 +43,7 @@ export const getBlogById = async (req, res) => {
 // Create new blog (Admin)
 export const createBlog = async (req, res) => {
     try {
-        const { title, subHeading, category, content, author } = req.body;
+        const { title, subHeading, category, content, author, metaTitle, metaDescription } = req.body;
 
         // Validate required fields
         if (!title || !subHeading || !category || !content) {
@@ -78,6 +78,8 @@ export const createBlog = async (req, res) => {
             mainImage: req.files.mainImage[0].path,
             content,
             contentImages,
+            metaTitle,
+            metaDescription,
             author: author || 'Admin',
             authorDate
         });
@@ -119,7 +121,7 @@ export const updateBlog = async (req, res) => {
             { id: parseInt(id) },
             { ...updateData, updatedAt: Date.now() },
             { new: true }
-        );
+        ).lean();
 
         if (!blog) {
             return res.status(404).json({ message: 'Blog not found' });

@@ -15,7 +15,7 @@ export const resetProductCounter = async (req, res) => {
 
 export const getAllProducts = async (req, res) => {
     try {
-        const products = await Product.find();
+        const products = await Product.find().lean();
         res.json(products);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -324,27 +324,30 @@ export const addProductReview = async (req, res) => {
 
 export const getAllReviews = async (req, res) => {
     try {
-        console.log("Fetching all products...");
-        const allProducts = await Product.find({});
-        console.log(`Found ${allProducts.length} product categories.`);
+        const allProducts = await Product.find({}).lean();
+
+        const userIds = [];
+        for (const categoryDoc of allProducts) {
+            for (const product of categoryDoc.products) {
+                if (product.reviews && product.reviews.length > 0) {
+                    for (const review of product.reviews) {
+                        userIds.push(review.userId);
+                    }
+                }
+            }
+        }
+
+        const users = await User.find({ _id: { $in: userIds } })
+            .select("name email")
+            .lean();
+        const usersById = new Map(users.map((u) => [u._id.toString(), u]));
 
         let allReviews = [];
         for (const categoryDoc of allProducts) {
-            console.log(`Processing category: ${categoryDoc.category}`);
             for (const product of categoryDoc.products) {
-                console.log(`Processing product: ${product.name} (ID: ${product.id})`);
                 if (product.reviews && product.reviews.length > 0) {
-                    console.log(
-                        `Found ${product.reviews.length} reviews for this product.`
-                    );
                     for (const review of product.reviews) {
-                        console.log(
-                            `Attempting to fetch user for review ID: ${review._id}`
-                        );
-                        const user = await User.findById(review.userId).select(
-                            "name email"
-                        );
-                        console.log(`User fetched: ${user ? user.email : "None"}`);
+                        const user = usersById.get(review.userId.toString());
                         allReviews.push({
                             _id: review._id,
                             productId: product.id,
@@ -360,11 +363,9 @@ export const getAllReviews = async (req, res) => {
                 }
             }
         }
-        console.log(`Total reviews collected: ${allReviews.length}`);
         res.status(200).json(allReviews);
     } catch (err) {
         console.error("SERVER ERROR fetching all reviews:", err);
-        console.error("❌ Error in getAllReviews:", error);
         res
             .status(500)
             .json({

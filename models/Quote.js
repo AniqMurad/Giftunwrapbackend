@@ -41,6 +41,7 @@ const quoteSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'contacted', 'quoted', 'closed'],
     default: 'pending',
+    index: true,
   },
   createdAt: {
     type: Date,

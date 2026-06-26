@@ -51,6 +51,14 @@ export const createOrder = async (req, res) => {
 
     // Handle gift box orders differently
     if (giftBoxOrder) {
+      const giftBoxItemIds = orderItems.map((item) => item.id);
+      const giftBoxItemDocs = await GiftBoxItem.find({
+        id: { $in: giftBoxItemIds },
+      }).lean();
+      const giftBoxItemsById = new Map(
+        giftBoxItemDocs.map((doc) => [doc.id, doc])
+      );
+
       for (const item of orderItems) {
         if (
           item.id === undefined ||
@@ -66,7 +74,7 @@ export const createOrder = async (req, res) => {
         }
 
         // Verify gift box item exists
-        const giftBoxItem = await GiftBoxItem.findOne({ id: item.id });
+        const giftBoxItem = giftBoxItemsById.get(item.id);
         if (!giftBoxItem) {
           return res
             .status(404)
@@ -94,6 +102,16 @@ export const createOrder = async (req, res) => {
       }
     } else {
       // Regular product order
+      const productCategories = [
+        ...new Set(orderItems.map((item) => item.category)),
+      ];
+      const productCategoryDocs = await Product.find({
+        category: { $in: productCategories },
+      }).lean();
+      const productCategoryDocsByCategory = new Map(
+        productCategoryDocs.map((doc) => [doc.category, doc])
+      );
+
       for (const item of orderItems) {
         if (
           !item.category ||
@@ -109,9 +127,9 @@ export const createOrder = async (req, res) => {
             .json({ message: `Invalid quantity for item ${item.name}` });
         }
 
-        const productCategoryDoc = await Product.findOne({
-          category: item.category,
-        });
+        const productCategoryDoc = productCategoryDocsByCategory.get(
+          item.category
+        );
         if (!productCategoryDoc) {
           return res
             .status(404)
@@ -251,9 +269,9 @@ export const getOrders = async (req, res) => {
 
     let orders;
     if (userId) {
-      orders = await Order.find({ user: userId });
+      orders = await Order.find({ user: userId }).lean();
     } else {
-      orders = await Order.find({});
+      orders = await Order.find({}).lean();
     }
 
     res.json(orders);

@@ -4,7 +4,7 @@ import Box from '../models/Box.js';
 // Get all boxes
 export const getAllBoxes = async (req, res) => {
     try {
-        const boxes = await Box.find({ inStock: true }).sort({ price: 1 });
+        const boxes = await Box.find({ inStock: true }).sort({ price: 1 }).lean();
         res.status(200).json(boxes);
     } catch (error) {
         console.error('Error fetching boxes:', error);
@@ -16,8 +16,8 @@ export const getAllBoxes = async (req, res) => {
 export const getBoxById = async (req, res) => {
     try {
         const { id } = req.params;
-        const box = await Box.findOne({ id: parseInt(id) });
-        
+        const box = await Box.findOne({ id: parseInt(id) }).lean();
+
         if (!box) {
             return res.status(404).json({ message: 'Box not found' });
         }
@@ -92,7 +92,7 @@ export const updateBox = async (req, res) => {
             { id: parseInt(id) },
             { ...updateData, updatedAt: Date.now() },
             { new: true }
-        );
+        ).lean();
 
         if (!box) {
             return res.status(404).json({ message: 'Box not found' });

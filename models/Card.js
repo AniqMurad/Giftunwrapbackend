@@ -8,7 +8,7 @@ const cardSchema = new mongoose.Schema({
     image: { type: String, required: true },
     color: { type: String, default: '#F5F5F5' },
     description: { type: String },
-    inStock: { type: Boolean, default: true },
+    inStock: { type: Boolean, default: true, index: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });

@@ -5,9 +5,10 @@ const giftBoxItemSchema = new mongoose.Schema({
     id: { type: Number, required: true, unique: true },
     name: { type: String, required: true },
     price: { type: Number, required: true },
-    category: { 
-        type: String, 
+    category: {
+        type: String,
         required: true,
+        index: true,
         enum: [
             'chocolates-snacks',
             'flowers',
@@ -25,7 +26,7 @@ const giftBoxItemSchema = new mongoose.Schema({
         image: { type: String, required: true }
     }],
     description: { type: String },
-    inStock: { type: Boolean, default: true },
+    inStock: { type: Boolean, default: true, index: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });

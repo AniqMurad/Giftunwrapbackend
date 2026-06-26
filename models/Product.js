@@ -26,7 +26,7 @@ const reviewSchema = new mongoose.Schema({
 });
 
 const productSchema = new mongoose.Schema({
-    category: { type: String, required: true },
+    category: { type: String, required: true, index: true },
     products: [
         {
             id: { type: Number, required: true }, 
