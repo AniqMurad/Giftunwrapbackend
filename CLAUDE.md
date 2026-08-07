@@ -45,11 +45,16 @@ Only two middleware files exist:
 - `middleware/checkDbConnection.js` — returns `503` if `mongoose.connection.readyState !== 1`.
 - `middleware/upload.js` — the Cloudinary/multer upload pipeline above.
 
+## Email service
+- `services/emailService.js` owns the single Nodemailer `transporter` (built from `MAIL_HOST`/`MAIL_PORT`/`MAIL_SECURE`/`MAIL_USER`/`MAIL_PASS`) and exports `sendCustomerOrderEmail(order)` / `sendAdminOrderNotification(order)`. Both catch their own errors internally and log `✓`/`✗` rather than throwing, so a Gmail outage never fails order creation.
+- `services/emailTemplates.js` builds the HTML (inline CSS, table-based layout, `escapeHtml` on all interpolated user data) — controllers never touch email HTML.
+- `orderController.js#createOrder` fires both emails after `order.save()` via `Promise.all([...])`, wrapped in its own try/catch as a second safety net.
+
 **There is no auth middleware** (no `verifyToken`/JWT check on any route) and **no global error handler** — every controller handles its own try/catch. Admin-style endpoints (e.g. `DELETE /users/:id`, `DELETE /products/:id`) are reachable without any authentication today.
 
 ## Environment config
 - `dotenv.config()` is called at the top of `index.js`; everything reads from `process.env` directly (no `config/` folder, no env validation/schema).
-- Known keys (see root `CLAUDE.md`): `MONGO_URI`, `PORT`, `JWT_SECRET`, `EMAIL_USER`, `EMAIL_PASS`.
+- Known keys (see root `CLAUDE.md`): `MONGO_URI`, `PORT`, `JWT_SECRET`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_SECURE`, `MAIL_USER`, `MAIL_PASS`, `ADMIN_EMAIL`.
 - **No `.gitignore` exists in this repo**, so `.env` is not excluded from version control — don't treat secrets here as private; rotate before reuse.
 - `generateSecret.js` is a one-off CLI script (`node generateSecret.js`) that prints a random 64-byte hex string for use as `JWT_SECRET`. It is **not imported anywhere** — it's a manual tool, not part of the running app, and uses CommonJS `require` even though the rest of the project is ESM — run it standalone, don't import it.
 - Mongo connection (`index.js`) sets `serverSelectionTimeoutMS: 10000`, `socketTimeoutMS: 45000`, `maxPoolSize: 10`, `minPoolSize: 1`, `family: 4`, and skips reconnecting if `mongoose.connection.readyState === 1`.
