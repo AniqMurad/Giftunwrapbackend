@@ -2,7 +2,10 @@
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import GiftBoxItem from "../models/GiftBoxItem.js";
-import sendOrderEmail from "../utils/sendOrderEmail.js";
+import {
+  sendCustomerOrderEmail,
+  sendAdminOrderNotification,
+} from "../services/emailService.js";
 
 export const createOrder = async (req, res) => {
   try {
@@ -242,18 +245,17 @@ export const createOrder = async (req, res) => {
     const order = new Order(orderData);
 
     const createdOrder = await order.save();
+    console.log(`✓ Order saved successfully (#${createdOrder._id})`);
+
     try {
-      await sendOrderEmail(
-        shippingInfo.email,
-        shippingInfo.firstName,
-        createdOrder._id,
-        createdOrder.orderItems,
-        createdOrder.totalAmount
-      );
-      console.log(`Confirmation email sent to ${shippingInfo.email}`);
-    } catch (emailErr) {
-      console.error("Failed to send confirmation email:", emailErr);
+      await Promise.all([
+        sendCustomerOrderEmail(createdOrder),
+        sendAdminOrderNotification(createdOrder),
+      ]);
+    } catch (err) {
+      console.error("✗ Failed to send order notifications:", err.message);
     }
+
     res.status(201).json(createdOrder);
   } catch (error) {
     console.error("Error creating order:", error);
