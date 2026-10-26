@@ -17,7 +17,8 @@ const giftBoxItemSchema = new mongoose.Schema({
             'fragrances',
             'clothing',
             'shoes',
-            'beauty-personal-care'
+            'beauty-personal-care',
+            'gift-cards'
         ]
     },
     image: { type: String, required: true },
