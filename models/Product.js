@@ -34,7 +34,14 @@ const productSchema = new mongoose.Schema({
             price: { type: Number, required: true },
             originalPrice: { type: Number },
             discount: { type: Number },
-            keyGift: { type: String, required: true },
+            keyGift: {
+                type: [String],
+                required: true,
+                validate: {
+                    validator: (values) => Array.isArray(values) && values.length > 0,
+                    message: 'At least one key gift is required'
+                }
+            },
             subcategory: { type: String, default: null },
             images: [{ type: String }],
             shortDescription: { type: String },
