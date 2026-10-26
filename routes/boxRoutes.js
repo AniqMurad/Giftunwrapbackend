@@ -17,8 +17,14 @@ router.get('/', getAllBoxes);
 router.get('/:id', getBoxById);
 
 // Admin routes (you can add authentication middleware here)
-router.post('/', upload.single('image'), createBox);
-router.put('/:id', upload.single('image'), updateBox);
+router.post('/', upload.fields([
+    { name: 'images', maxCount: 10 },
+    { name: 'image', maxCount: 1 }
+]), createBox);
+router.put('/:id', upload.fields([
+    { name: 'images', maxCount: 10 },
+    { name: 'image', maxCount: 1 }
+]), updateBox);
 router.delete('/:id', deleteBox);
 router.patch('/:id/toggle-stock', toggleBoxStock);
 

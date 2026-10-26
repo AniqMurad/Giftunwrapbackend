@@ -1,6 +1,27 @@
 // controllers/boxController.js
 import Box from '../models/Box.js';
 
+const MAX_BOX_IMAGES = 10;
+
+const getUploadedFiles = (files) => {
+    if (Array.isArray(files)) return files;
+    if (!files || typeof files !== 'object') return [];
+    return Object.values(files).flat();
+};
+
+const parseRetainedImages = (value) => {
+    if (value === undefined) return undefined;
+
+    try {
+        const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+        return Array.isArray(parsed) ? parsed.filter((url) => typeof url === 'string' && url.trim()) : [];
+    } catch {
+        return [];
+    }
+};
+
+const uniqueImages = (images) => [...new Set(images.filter(Boolean))];
+
 // Get all boxes
 export const getAllBoxes = async (req, res) => {
     try {
@@ -33,6 +54,7 @@ export const getBoxById = async (req, res) => {
 export const createBox = async (req, res) => {
     try {
         const { name, size, price, capacity, color, description } = req.body;
+        const uploadedImages = uniqueImages(getUploadedFiles(req.files).map((file) => file.path));
 
         // Validate required fields
         if (!name || !size || !price || !capacity) {
@@ -41,10 +63,14 @@ export const createBox = async (req, res) => {
             });
         }
 
-        if (!req.file) {
+        if (uploadedImages.length === 0) {
             return res.status(400).json({ 
-                message: 'Name, size, price, capacity, and image are required' 
+                message: 'Name, size, price, capacity, and at least one image are required'
             });
+        }
+
+        if (uploadedImages.length > MAX_BOX_IMAGES) {
+            return res.status(400).json({ message: `A box can have up to ${MAX_BOX_IMAGES} images` });
         }
 
         // Get the next ID
@@ -57,7 +83,8 @@ export const createBox = async (req, res) => {
             size,
             price: Number(price),
             capacity,
-            image: req.file.path,
+            image: uploadedImages[0],
+            images: uploadedImages,
             color,
             description
         });
@@ -75,28 +102,55 @@ export const updateBox = async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = { ...req.body };
+        const existingBox = await Box.findOne({ id: parseInt(id) });
 
-        // Image can only be updated through multipart file upload.
-        delete updateData.image;
-
-        // If an image file is uploaded, replace the existing one.
-        if (req.file) {
-            updateData.image = req.file.path;
+        if (!existingBox) {
+            return res.status(404).json({ message: 'Box not found' });
         }
+
+        const uploadedImages = uniqueImages(getUploadedFiles(req.files).map((file) => file.path));
+        const requestedRetainedImages = parseRetainedImages(updateData.retainedImages);
+        const currentImages = uniqueImages(existingBox.images?.length ? existingBox.images : [existingBox.image]);
+        const currentImageSet = new Set(currentImages);
+        const retainedImages = requestedRetainedImages === undefined
+            ? undefined
+            : requestedRetainedImages.filter((url) => currentImageSet.has(url));
+
+        // Image fields can only be updated through the retained-image list and multipart uploads.
+        delete updateData.image;
+        delete updateData.images;
+        delete updateData.retainedImages;
+
+        let nextImages;
+        if (retainedImages !== undefined) {
+            nextImages = uniqueImages([...retainedImages, ...uploadedImages]);
+        } else if (uploadedImages.length > 0) {
+            // Preserve the previous single-image replacement behavior for older admin clients.
+            nextImages = uploadedImages;
+        } else {
+            nextImages = currentImages;
+        }
+
+        if (nextImages.length === 0) {
+            return res.status(400).json({ message: 'A box must have at least one image' });
+        }
+
+        if (nextImages.length > MAX_BOX_IMAGES) {
+            return res.status(400).json({ message: `A box can have up to ${MAX_BOX_IMAGES} images` });
+        }
+
+        updateData.images = nextImages;
+        updateData.image = nextImages[0];
 
         if (updateData.price !== undefined) {
             updateData.price = Number(updateData.price);
         }
 
         const box = await Box.findOneAndUpdate(
-            { id: parseInt(id) },
+            { _id: existingBox._id },
             { ...updateData, updatedAt: Date.now() },
             { new: true }
         ).lean();
-
-        if (!box) {
-            return res.status(404).json({ message: 'Box not found' });
-        }
 
         res.status(200).json({ message: 'Box updated successfully', box });
     } catch (error) {

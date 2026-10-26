@@ -8,6 +8,7 @@ const boxSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     capacity: { type: String, required: true }, // e.g., "3-5 items"
     image: { type: String, required: true },
+    images: { type: [String], default: [] },
     color: { type: String, default: '#F5DEB3' },
     description: { type: String },
     inStock: { type: Boolean, default: true, index: true },
@@ -17,6 +18,12 @@ const boxSchema = new mongoose.Schema({
 
 // Update the updatedAt timestamp before saving
 boxSchema.pre('save', function(next) {
+    if ((!this.images || this.images.length === 0) && this.image) {
+        this.images = [this.image];
+    }
+    if (this.images?.length) {
+        this.image = this.images[0];
+    }
     this.updatedAt = Date.now();
     next();
 });
