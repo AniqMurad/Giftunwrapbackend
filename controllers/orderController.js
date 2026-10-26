@@ -50,6 +50,7 @@ export const createOrder = async (req, res) => {
     let calculatedSubtotal = 0;
     const itemsForDatabase = [];
     let verifiedSelectedBox = null;
+    let verifiedSelectedCard = null;
 
     // Handle gift box orders differently
     if (giftBoxOrder) {
@@ -132,6 +133,39 @@ export const createOrder = async (req, res) => {
         price: Number(selectedVariant.price),
         image: box.image,
       };
+
+      if (selectedCard) {
+        const isCatalogueCard = selectedCard.source === "product" || selectedCard.productCategory === "greetingCards";
+        if (isCatalogueCard) {
+          const productCategory = selectedCard.productCategory || "greetingCards";
+          const cardCollection = await Product.findOne({ category: productCategory }).lean();
+          const cardProduct = cardCollection?.products?.find((product) => product.id === Number(selectedCard.id));
+          if (!cardProduct) {
+            return res.status(404).json({ message: "The selected greeting card is unavailable." });
+          }
+
+          const cardPrice = Number(cardProduct.price) || 0;
+          calculatedSubtotal += cardPrice;
+          verifiedSelectedCard = {
+            id: cardProduct.id,
+            name: cardProduct.name,
+            design: cardProduct.subcategory || "Greeting card",
+            image: cardProduct.images?.[0],
+            price: cardPrice,
+            source: "product",
+            productCategory,
+          };
+        } else {
+          verifiedSelectedCard = {
+            id: selectedCard.id,
+            name: selectedCard.name,
+            design: selectedCard.design,
+            image: selectedCard.image,
+            price: 0,
+            source: "builder-card",
+          };
+        }
+      }
     } else {
       // Regular product order
       const productCategories = [
@@ -252,13 +286,8 @@ export const createOrder = async (req, res) => {
       if (verifiedSelectedBox) {
         orderData.selectedBox = verifiedSelectedBox;
       }
-      if (selectedCard) {
-        orderData.selectedCard = {
-          id: selectedCard.id,
-          name: selectedCard.name,
-          design: selectedCard.design,
-          image: selectedCard.image,
-        };
+      if (verifiedSelectedCard) {
+        orderData.selectedCard = verifiedSelectedCard;
       }
       if (cardMessage) {
         orderData.cardMessage = cardMessage;

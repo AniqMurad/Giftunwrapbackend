@@ -49,7 +49,10 @@ const orderSchema = new mongoose.Schema({
         id: { type: Number },
         name: { type: String },
         design: { type: String },
-        image: { type: String }
+        image: { type: String },
+        price: { type: Number, default: 0 },
+        source: { type: String },
+        productCategory: { type: String }
     },
     cardMessage: { type: String },
     
