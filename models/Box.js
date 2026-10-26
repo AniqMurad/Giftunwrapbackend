@@ -1,12 +1,19 @@
 // models/Box.js
 import mongoose from 'mongoose';
 
+const boxSizeVariantSchema = new mongoose.Schema({
+    size: { type: String, required: true, enum: ['small', 'medium', 'large'] },
+    price: { type: Number, required: true, min: 0 },
+    capacity: { type: Number, required: true, min: 1 }
+}, { _id: false });
+
 const boxSchema = new mongoose.Schema({
     id: { type: Number, required: true, unique: true },
     name: { type: String, required: true },
     size: { type: String, required: true }, // e.g., "15cm x 15cm x 10cm"
     price: { type: Number, required: true },
     capacity: { type: String, required: true }, // e.g., "3-5 items"
+    sizeVariants: { type: [boxSizeVariantSchema], default: [] },
     image: { type: String, required: true },
     images: { type: [String], default: [] },
     color: { type: String, default: '#F5DEB3' },

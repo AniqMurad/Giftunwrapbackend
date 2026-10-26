@@ -2,6 +2,7 @@
 import Box from '../models/Box.js';
 
 const MAX_BOX_IMAGES = 10;
+const BOX_SIZES = ['small', 'medium', 'large'];
 
 const getUploadedFiles = (files) => {
     if (Array.isArray(files)) return files;
@@ -21,6 +22,26 @@ const parseRetainedImages = (value) => {
 };
 
 const uniqueImages = (images) => [...new Set(images.filter(Boolean))];
+
+const parseSizeVariants = (value) => {
+    if (value === undefined) return undefined;
+
+    try {
+        const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+        if (!Array.isArray(parsed)) return [];
+        const bySize = new Map(parsed.map((variant) => [String(variant?.size || '').toLowerCase(), variant]));
+        return BOX_SIZES.flatMap((size) => {
+            const variant = bySize.get(size);
+            const price = Number(variant?.price);
+            const capacity = Number(variant?.capacity);
+            return Number.isFinite(price) && price >= 0 && Number.isInteger(capacity) && capacity > 0
+                ? [{ size, price, capacity }]
+                : [];
+        });
+    } catch {
+        return [];
+    }
+};
 
 // Get all boxes
 export const getAllBoxes = async (req, res) => {
@@ -54,13 +75,20 @@ export const getBoxById = async (req, res) => {
 export const createBox = async (req, res) => {
     try {
         const { name, size, price, capacity, color, description } = req.body;
+        const sizeVariants = parseSizeVariants(req.body.sizeVariants);
+        const hasVariantPayload = req.body.sizeVariants !== undefined;
+        const primaryVariant = sizeVariants?.[0];
         const uploadedImages = uniqueImages(getUploadedFiles(req.files).map((file) => file.path));
 
         // Validate required fields
-        if (!name || !size || !price || !capacity) {
+        if (!name || (!primaryVariant && (!size || price === undefined || !capacity))) {
             return res.status(400).json({ 
                 message: 'Name, size, price, and capacity are required' 
             });
+        }
+
+        if (hasVariantPayload && sizeVariants.length !== BOX_SIZES.length) {
+            return res.status(400).json({ message: 'Valid price and capacity values are required for small, medium, and large' });
         }
 
         if (uploadedImages.length === 0) {
@@ -80,9 +108,10 @@ export const createBox = async (req, res) => {
         const newBox = new Box({
             id: nextId,
             name,
-            size,
-            price: Number(price),
-            capacity,
+            size: primaryVariant ? 'Small' : size,
+            price: primaryVariant ? primaryVariant.price : Number(price),
+            capacity: primaryVariant ? String(primaryVariant.capacity) : capacity,
+            sizeVariants: sizeVariants || [],
             image: uploadedImages[0],
             images: uploadedImages,
             color,
@@ -109,6 +138,8 @@ export const updateBox = async (req, res) => {
         }
 
         const uploadedImages = uniqueImages(getUploadedFiles(req.files).map((file) => file.path));
+        const sizeVariants = parseSizeVariants(updateData.sizeVariants);
+        const hasVariantPayload = updateData.sizeVariants !== undefined;
         const requestedRetainedImages = parseRetainedImages(updateData.retainedImages);
         const currentImages = uniqueImages(existingBox.images?.length ? existingBox.images : [existingBox.image]);
         const currentImageSet = new Set(currentImages);
@@ -120,6 +151,7 @@ export const updateBox = async (req, res) => {
         delete updateData.image;
         delete updateData.images;
         delete updateData.retainedImages;
+        delete updateData.sizeVariants;
 
         let nextImages;
         if (retainedImages !== undefined) {
@@ -141,6 +173,16 @@ export const updateBox = async (req, res) => {
 
         updateData.images = nextImages;
         updateData.image = nextImages[0];
+
+        if (hasVariantPayload) {
+            if (sizeVariants.length !== BOX_SIZES.length) {
+                return res.status(400).json({ message: 'Valid price and capacity values are required for small, medium, and large' });
+            }
+            updateData.sizeVariants = sizeVariants;
+            updateData.size = 'Small';
+            updateData.price = sizeVariants[0].price;
+            updateData.capacity = String(sizeVariants[0].capacity);
+        }
 
         if (updateData.price !== undefined) {
             updateData.price = Number(updateData.price);

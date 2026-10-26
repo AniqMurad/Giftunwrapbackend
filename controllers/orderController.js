@@ -2,6 +2,7 @@
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import GiftBoxItem from "../models/GiftBoxItem.js";
+import Box from "../models/Box.js";
 import sendOrderEmail from "../utils/sendOrderEmail.js";
 
 export const createOrder = async (req, res) => {
@@ -48,6 +49,7 @@ export const createOrder = async (req, res) => {
 
     let calculatedSubtotal = 0;
     const itemsForDatabase = [];
+    let verifiedSelectedBox = null;
 
     // Handle gift box orders differently
     if (giftBoxOrder) {
@@ -96,10 +98,40 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      // Add box price to subtotal if selected
-      if (selectedBox && selectedBox.price) {
-        calculatedSubtotal += selectedBox.price;
+      if (!selectedBox?.id) {
+        return res.status(400).json({ message: "A gift box selection is required." });
       }
+
+      const box = await Box.findOne({ id: Number(selectedBox.id), inStock: true }).lean();
+      if (!box) {
+        return res.status(404).json({ message: "The selected gift box is unavailable." });
+      }
+
+      const requestedSize = String(selectedBox.selectedSize || selectedBox.size || "").toLowerCase();
+      const variants = Array.isArray(box.sizeVariants) ? box.sizeVariants : [];
+      const selectedVariant = variants.length
+        ? variants.find((variant) => variant.size === requestedSize)
+        : { size: box.size, price: box.price, capacity: Number.parseInt(box.capacity, 10) };
+
+      if (!selectedVariant) {
+        return res.status(400).json({ message: "Choose a valid gift box size." });
+      }
+
+      const selectedCapacity = Number(selectedVariant.capacity);
+      const selectedItemCount = orderItems.reduce((total, item) => total + Number(item.quantity || 0), 0);
+      if (Number.isFinite(selectedCapacity) && selectedItemCount > selectedCapacity) {
+        return res.status(400).json({ message: "The selected gift box size is too small for these items." });
+      }
+
+      calculatedSubtotal += Number(selectedVariant.price);
+      verifiedSelectedBox = {
+        id: box.id,
+        name: box.name,
+        size: String(selectedVariant.size).replace(/^./, (character) => character.toUpperCase()),
+        capacity: selectedCapacity,
+        price: Number(selectedVariant.price),
+        image: box.image,
+      };
     } else {
       // Regular product order
       const productCategories = [
@@ -217,14 +249,8 @@ export const createOrder = async (req, res) => {
     // Add gift box specific fields if it's a gift box order
     if (giftBoxOrder) {
       orderData.isGiftBox = true;
-      if (selectedBox) {
-        orderData.selectedBox = {
-          id: selectedBox.id,
-          name: selectedBox.name,
-          size: selectedBox.size,
-          price: selectedBox.price,
-          image: selectedBox.image,
-        };
+      if (verifiedSelectedBox) {
+        orderData.selectedBox = verifiedSelectedBox;
       }
       if (selectedCard) {
         orderData.selectedCard = {

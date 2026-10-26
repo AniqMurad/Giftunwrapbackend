@@ -41,6 +41,7 @@ const orderSchema = new mongoose.Schema({
         id: { type: Number },
         name: { type: String },
         size: { type: String },
+        capacity: { type: Number },
         price: { type: Number },
         image: { type: String }
     },
