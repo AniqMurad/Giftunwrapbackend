@@ -1,8 +1,82 @@
 import Product from "../models/Product.js";
 import mongoose from "mongoose";
 import User from "../models/User.js";
+import GiftBoxItem from "../models/GiftBoxItem.js";
 import { getNextProductId } from "../utils/getNextProductId.js";
 import Counter from "../models/Counter.js";
+
+const getUploadedFiles = (files, fieldName) => {
+    if (Array.isArray(files)) return fieldName === "images" ? files : [];
+    return Array.isArray(files?.[fieldName]) ? files[fieldName] : [];
+};
+
+const giftBoxItemSnapshot = (item) => ({
+    giftBoxItemId: item.id,
+    name: item.name,
+    ...(item.description ? { description: item.description } : {}),
+    image: item.image,
+});
+
+const legacyWhatsInsideItem = (item) => {
+    const name = String(item?.name || "").trim();
+    if (!name) return null;
+    return {
+        name,
+        ...(String(item?.description || "").trim() ? { description: String(item.description).trim() } : {}),
+        ...(typeof item?.image === "string" && item.image.trim() ? { image: item.image.trim() } : {}),
+    };
+};
+
+const resolveWhatsInsideItems = async (items) => {
+    if (!Array.isArray(items)) return { items: [], missingIds: [] };
+
+    const requestedIds = [...new Set(items
+        .map((item) => Number(item?.giftBoxItemId))
+        .filter((id) => Number.isInteger(id) && id > 0))];
+    const catalogueItems = requestedIds.length
+        ? await GiftBoxItem.find({ id: { $in: requestedIds } }).lean()
+        : [];
+    const catalogueById = new Map(catalogueItems.map((item) => [item.id, item]));
+    const missingIds = requestedIds.filter((id) => !catalogueById.has(id));
+
+    const resolvedItems = items.flatMap((item) => {
+        const giftBoxItemId = Number(item?.giftBoxItemId);
+        if (Number.isInteger(giftBoxItemId) && giftBoxItemId > 0) {
+            const catalogueItem = catalogueById.get(giftBoxItemId);
+            return catalogueItem ? [giftBoxItemSnapshot(catalogueItem)] : [];
+        }
+        const legacyItem = legacyWhatsInsideItem(item);
+        return legacyItem ? [legacyItem] : [];
+    });
+
+    return { items: resolvedItems, missingIds };
+};
+
+const hydrateProductContents = async (categoryDocuments) => {
+    const giftBoxItemIds = [...new Set(categoryDocuments.flatMap((category) =>
+        (category.products || []).flatMap((product) =>
+            (product.whatsInside || [])
+                .map((item) => Number(item.giftBoxItemId))
+                .filter((id) => Number.isInteger(id) && id > 0)
+        )
+    ))];
+
+    if (giftBoxItemIds.length === 0) return categoryDocuments;
+
+    const catalogueItems = await GiftBoxItem.find({ id: { $in: giftBoxItemIds } }).lean();
+    const catalogueById = new Map(catalogueItems.map((item) => [item.id, item]));
+
+    return categoryDocuments.map((category) => ({
+        ...category,
+        products: (category.products || []).map((product) => ({
+            ...product,
+            whatsInside: (product.whatsInside || []).map((storedItem) => {
+                const catalogueItem = catalogueById.get(Number(storedItem.giftBoxItemId));
+                return catalogueItem ? giftBoxItemSnapshot(catalogueItem) : storedItem;
+            }),
+        })),
+    }));
+};
 
 export const resetProductCounter = async (req, res) => {
     try {
@@ -16,7 +90,7 @@ export const resetProductCounter = async (req, res) => {
 export const getAllProducts = async (req, res) => {
     try {
         const products = await Product.find().lean();
-        res.json(products);
+        res.json(await hydrateProductContents(products));
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -85,8 +159,13 @@ export const createProductCategory = async (req, res) => {
         const { category } = req.body;
         const productData = JSON.parse(req.body.products)[0];
 
-        const uploadedUrls = req.files.map((file) => file.path);
+        const uploadedUrls = getUploadedFiles(req.files, "images").map((file) => file.path);
         productData.images = uploadedUrls;
+        const resolvedContents = await resolveWhatsInsideItems(productData.whatsInside);
+        if (resolvedContents.missingIds.length > 0) {
+            return res.status(400).json({ message: "One or more selected Gift Box Items no longer exist." });
+        }
+        productData.whatsInside = resolvedContents.items;
 
         // ✅ AUTO GLOBAL ID HERE
         productData.id = await getNextProductId();
@@ -190,7 +269,7 @@ export const updateProductById = async (req, res) => {
         }
 
         // Handle image updates
-        const uploadedUrls = req.files ? req.files.map((file) => file.path) : [];
+        const uploadedUrls = getUploadedFiles(req.files, "images").map((file) => file.path);
         console.log('Uploaded new image URLs:', uploadedUrls);
 
         if (uploadedUrls.length > 0) {
@@ -220,7 +299,13 @@ export const updateProductById = async (req, res) => {
         if (updatedProductData.longDescription !== undefined) productToUpdate.longDescription = updatedProductData.longDescription;
         if (updatedProductData.metaTitle !== undefined) productToUpdate.metaTitle = updatedProductData.metaTitle;
         if (updatedProductData.metaDescription !== undefined) productToUpdate.metaDescription = updatedProductData.metaDescription;
-        if (updatedProductData.whatsInside !== undefined) productToUpdate.whatsInside = updatedProductData.whatsInside;
+        if (updatedProductData.whatsInside !== undefined) {
+            const resolvedContents = await resolveWhatsInsideItems(updatedProductData.whatsInside);
+            if (resolvedContents.missingIds.length > 0) {
+                return res.status(400).json({ message: "One or more selected Gift Box Items no longer exist." });
+            }
+            productToUpdate.whatsInside = resolvedContents.items;
+        }
         if (updatedProductData.brand !== undefined) productToUpdate.brand = updatedProductData.brand;
         if (updatedProductData.countInStock !== undefined) productToUpdate.countInStock = updatedProductData.countInStock;
 
