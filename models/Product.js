@@ -25,6 +25,12 @@ const reviewSchema = new mongoose.Schema({
     }
 });
 
+const whatsInsideItemSchema = new mongoose.Schema({
+    name: { type: String, required: true, trim: true },
+    quantity: { type: Number, min: 1 },
+    description: { type: String, trim: true }
+}, { _id: false });
+
 const productSchema = new mongoose.Schema({
     category: { type: String, required: true, index: true },
     products: [
@@ -48,6 +54,7 @@ const productSchema = new mongoose.Schema({
             longDescription: { type: String },
             metaTitle: { type: String },
             metaDescription: { type: String },
+            whatsInside: { type: [whatsInsideItemSchema], default: [] },
             reviews: [reviewSchema] 
         }
     ]

@@ -220,6 +220,7 @@ export const updateProductById = async (req, res) => {
         if (updatedProductData.longDescription !== undefined) productToUpdate.longDescription = updatedProductData.longDescription;
         if (updatedProductData.metaTitle !== undefined) productToUpdate.metaTitle = updatedProductData.metaTitle;
         if (updatedProductData.metaDescription !== undefined) productToUpdate.metaDescription = updatedProductData.metaDescription;
+        if (updatedProductData.whatsInside !== undefined) productToUpdate.whatsInside = updatedProductData.whatsInside;
         if (updatedProductData.brand !== undefined) productToUpdate.brand = updatedProductData.brand;
         if (updatedProductData.countInStock !== undefined) productToUpdate.countInStock = updatedProductData.countInStock;
 
