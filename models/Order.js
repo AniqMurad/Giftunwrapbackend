@@ -14,13 +14,30 @@ const shippingAddressSchema = new mongoose.Schema({
     additionalInfo: { type: String }
 });
 
+const productPersonalizationSchema = new mongoose.Schema({
+    card: {
+        id: { type: Number },
+        name: { type: String },
+        design: { type: String },
+        image: { type: String },
+        price: { type: Number, default: 0 },
+        source: { type: String },
+        productCategory: { type: String }
+    },
+    messageMode: { type: String, enum: ['write', 'blank'] },
+    from: { type: String },
+    to: { type: String },
+    message: { type: String }
+}, { _id: false });
+
 const orderItemSchema = new mongoose.Schema({
     productCategory: { type: String, required: true },
     productId: { type: Number, required: true },
     name: { type: String, required: true },
     quantity: { type: Number, required: true, min: 1 },
     priceAtTimeOfOrder: { type: Number, required: true }, 
-    imageUrl: { type: String } 
+    imageUrl: { type: String },
+    personalization: { type: productPersonalizationSchema }
 });
 
 const paymentDetailsSchema = new mongoose.Schema({

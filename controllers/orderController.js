@@ -5,6 +5,8 @@ import GiftBoxItem from "../models/GiftBoxItem.js";
 import Box from "../models/Box.js";
 import sendOrderEmail from "../utils/sendOrderEmail.js";
 
+const FREE_SHIPPING_THRESHOLD = 5000;
+
 export const createOrder = async (req, res) => {
   try {
     const {
@@ -169,7 +171,12 @@ export const createOrder = async (req, res) => {
     } else {
       // Regular product order
       const productCategories = [
-        ...new Set(orderItems.map((item) => item.category)),
+        ...new Set(orderItems.flatMap((item) => [
+          item.category,
+          ...(item.personalization?.card
+            ? [item.personalization.card.productCategory || "greetingCards"]
+            : []),
+        ])),
       ];
       const productCategoryDocs = await Product.find({
         category: { $in: productCategories },
@@ -220,6 +227,40 @@ export const createOrder = async (req, res) => {
 
         calculatedSubtotal += itemPrice * item.quantity;
 
+        let verifiedPersonalization;
+        if (item.personalization?.card) {
+          const requestedCard = item.personalization.card;
+          const cardCategory = requestedCard.productCategory || "greetingCards";
+          const cardCollection = productCategoryDocsByCategory.get(cardCategory);
+          const cardProduct = cardCollection?.products?.find(
+            (candidate) => candidate.id === Number(requestedCard.id)
+          );
+
+          if (!cardProduct) {
+            return res.status(404).json({ message: "The selected greeting card is unavailable." });
+          }
+
+          const cardPrice = Number(cardProduct.price) || 0;
+          calculatedSubtotal += cardPrice * item.quantity;
+          verifiedPersonalization = {
+            card: {
+              id: cardProduct.id,
+              name: cardProduct.name,
+              design: cardProduct.subcategory || "Greeting card",
+              image: cardProduct.images?.[0],
+              price: cardPrice,
+              source: "product",
+              productCategory: cardCategory,
+            },
+            messageMode: item.personalization.messageMode === "blank" ? "blank" : "write",
+            ...(item.personalization.messageMode !== "blank" && {
+              from: String(item.personalization.from || "").trim(),
+              to: String(item.personalization.to || "").trim(),
+              message: String(item.personalization.message || "").trim(),
+            }),
+          };
+        }
+
         itemsForDatabase.push({
           productCategory: item.category,
           productId: item.id,
@@ -230,12 +271,13 @@ export const createOrder = async (req, res) => {
             product.images && product.images.length > 0
               ? product.images[0]
               : null,
+          ...(verifiedPersonalization && { personalization: verifiedPersonalization }),
         });
       }
     }
 
     const calculatedShippingCost =
-      calculatedSubtotal > 0 ? (calculatedSubtotal >= 10000 ? 0 : 350) : 0;
+      calculatedSubtotal > 0 ? (calculatedSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 350) : 0;
     const calculatedDiscountAmount = 0;
     const calculatedTotalAmount =
       calculatedSubtotal + calculatedShippingCost - calculatedDiscountAmount;
