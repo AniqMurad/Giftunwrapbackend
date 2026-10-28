@@ -5,16 +5,26 @@ import GiftBoxItem from "../models/GiftBoxItem.js";
 import { getNextProductId } from "../utils/getNextProductId.js";
 import Counter from "../models/Counter.js";
 
+const MAX_PRODUCT_IMAGES = 10;
+
 const getUploadedFiles = (files, fieldName) => {
-    if (Array.isArray(files)) return fieldName === "images" ? files : [];
+    if (Array.isArray(files)) return files.filter((file) => file.fieldname === fieldName);
     return Array.isArray(files?.[fieldName]) ? files[fieldName] : [];
 };
 
-const giftBoxItemSnapshot = (item) => ({
+const applyWhatsInsideImageUploads = (items, files) => (Array.isArray(items) ? items : []).map((item, index) => {
+    const uploadedImage = getUploadedFiles(files, `whatsInsideImage_${index}`)[0];
+    return uploadedImage
+        ? { ...item, image: uploadedImage.path, imageOverride: true }
+        : item;
+});
+
+const giftBoxItemSnapshot = (item, storedItem = {}) => ({
     giftBoxItemId: item.id,
     name: item.name,
     ...(item.description ? { description: item.description } : {}),
-    image: item.image,
+    image: storedItem.imageOverride && storedItem.image ? storedItem.image : item.image,
+    ...(storedItem.imageOverride && storedItem.image ? { imageOverride: true } : {}),
 });
 
 const legacyWhatsInsideItem = (item) => {
@@ -24,6 +34,7 @@ const legacyWhatsInsideItem = (item) => {
         name,
         ...(String(item?.description || "").trim() ? { description: String(item.description).trim() } : {}),
         ...(typeof item?.image === "string" && item.image.trim() ? { image: item.image.trim() } : {}),
+        ...(item?.imageOverride === true ? { imageOverride: true } : {}),
     };
 };
 
@@ -43,7 +54,7 @@ const resolveWhatsInsideItems = async (items) => {
         const giftBoxItemId = Number(item?.giftBoxItemId);
         if (Number.isInteger(giftBoxItemId) && giftBoxItemId > 0) {
             const catalogueItem = catalogueById.get(giftBoxItemId);
-            return catalogueItem ? [giftBoxItemSnapshot(catalogueItem)] : [];
+            return catalogueItem ? [giftBoxItemSnapshot(catalogueItem, item)] : [];
         }
         const legacyItem = legacyWhatsInsideItem(item);
         return legacyItem ? [legacyItem] : [];
@@ -72,7 +83,7 @@ const hydrateProductContents = async (categoryDocuments) => {
             ...product,
             whatsInside: (product.whatsInside || []).map((storedItem) => {
                 const catalogueItem = catalogueById.get(Number(storedItem.giftBoxItemId));
-                return catalogueItem ? giftBoxItemSnapshot(catalogueItem) : storedItem;
+                return catalogueItem ? giftBoxItemSnapshot(catalogueItem, storedItem) : storedItem;
             }),
         })),
     }));
@@ -160,7 +171,14 @@ export const createProductCategory = async (req, res) => {
         const productData = JSON.parse(req.body.products)[0];
 
         const uploadedUrls = getUploadedFiles(req.files, "images").map((file) => file.path);
+        if (uploadedUrls.length === 0) {
+            return res.status(400).json({ message: "At least one product image is required." });
+        }
+        if (uploadedUrls.length > MAX_PRODUCT_IMAGES) {
+            return res.status(400).json({ message: `A product can have up to ${MAX_PRODUCT_IMAGES} images.` });
+        }
         productData.images = uploadedUrls;
+        productData.whatsInside = applyWhatsInsideImageUploads(productData.whatsInside, req.files);
         const resolvedContents = await resolveWhatsInsideItems(productData.whatsInside);
         if (resolvedContents.missingIds.length > 0) {
             return res.status(400).json({ message: "One or more selected Gift Box Items no longer exist." });
@@ -272,16 +290,17 @@ export const updateProductById = async (req, res) => {
         const uploadedUrls = getUploadedFiles(req.files, "images").map((file) => file.path);
         console.log('Uploaded new image URLs:', uploadedUrls);
 
-        if (uploadedUrls.length > 0) {
-            // If new images are uploaded, replace all existing images with the new ones
-            productToUpdate.images = uploadedUrls;
-            console.log('Images replaced with new uploads.');
-        } else if (updatedProductData.images && Array.isArray(updatedProductData.images)) {
-            // If no new files uploaded, but `images` field is present in updated data (for retained images)
-            // This is crucial: only update if `updatedProductData.images` is explicitly sent
-            // This handles cases where images are removed or retained without new uploads
-            productToUpdate.images = updatedProductData.images;
-            console.log('Images updated with retained images from payload, no new uploads.');
+        if (uploadedUrls.length > 0 || Array.isArray(updatedProductData.images)) {
+            const retainedImages = Array.isArray(updatedProductData.images) ? updatedProductData.images : productToUpdate.images;
+            const nextImages = [...new Set([...retainedImages, ...uploadedUrls].filter(Boolean))];
+            if (nextImages.length === 0) {
+                return res.status(400).json({ message: "At least one product image is required." });
+            }
+            if (nextImages.length > MAX_PRODUCT_IMAGES) {
+                return res.status(400).json({ message: `A product can have up to ${MAX_PRODUCT_IMAGES} images.` });
+            }
+            productToUpdate.images = nextImages;
+            console.log('Product gallery updated with retained and newly uploaded images.');
         }
         // If no new images and no images array in updatedProductData, existing images are retained by default
 
@@ -300,6 +319,7 @@ export const updateProductById = async (req, res) => {
         if (updatedProductData.metaTitle !== undefined) productToUpdate.metaTitle = updatedProductData.metaTitle;
         if (updatedProductData.metaDescription !== undefined) productToUpdate.metaDescription = updatedProductData.metaDescription;
         if (updatedProductData.whatsInside !== undefined) {
+            updatedProductData.whatsInside = applyWhatsInsideImageUploads(updatedProductData.whatsInside, req.files);
             const resolvedContents = await resolveWhatsInsideItems(updatedProductData.whatsInside);
             if (resolvedContents.missingIds.length > 0) {
                 return res.status(400).json({ message: "One or more selected Gift Box Items no longer exist." });

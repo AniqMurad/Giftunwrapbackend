@@ -26,12 +26,12 @@ router.get('/', getAllProducts);
 router.delete('/delete', deleteAllProducts);
 
 // posting a product category with images on admin portal
-router.post('/multipleproductcategory', upload.array('images', 4), createProductCategory);
+router.post('/multipleproductcategory', upload.any(), createProductCategory);
 
 // deleting a product by id from admin portal
 router.delete('/:id', deleteProductById);
 
-router.put('/:id', upload.array('images', 4), updateProductById);
+router.put('/:id', upload.any(), updateProductById);
 
 // posting review API from order history page
 router.post('/:productId/reviews', addProductReview);
