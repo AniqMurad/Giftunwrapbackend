@@ -259,6 +259,27 @@ export const createOrder = async (req, res) => {
               message: String(item.personalization.message || "").trim(),
             }),
           };
+        } else if (item.category === "greetingCards" && item.personalization?.messageMode) {
+          const messageMode = item.personalization.messageMode === "blank" ? "blank" : "write";
+          const from = String(item.personalization.from || "").trim();
+          const to = String(item.personalization.to || "").trim();
+          const message = String(item.personalization.message || "").trim();
+
+          if (messageMode === "write" && (!from || !to || !message)) {
+            return res.status(400).json({
+              message: `Complete the card message details for ${item.name} or choose Leave Card Blank.`,
+            });
+          }
+          if (from.length > 100 || to.length > 100 || message.length > 300) {
+            return res.status(400).json({
+              message: `The card message details for ${item.name} are too long.`,
+            });
+          }
+
+          verifiedPersonalization = {
+            messageMode,
+            ...(messageMode === "write" && { from, to, message }),
+          };
         }
 
         itemsForDatabase.push({
