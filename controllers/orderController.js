@@ -91,6 +91,24 @@ export const createOrder = async (req, res) => {
         const itemPrice = giftBoxItem.price;
         calculatedSubtotal += itemPrice * item.quantity;
 
+        const allowedSizes = product.showSizeOptions
+          ? (product.sizeOptions || []).map((value) => String(value).trim())
+          : [];
+        const allowedColors = product.showColorOptions
+          ? (product.colorOptions || []).map((value) => String(value).trim())
+          : [];
+        const requestedSize = String(item.selectedSize || "").trim();
+        const requestedColor = String(item.selectedColor || "").trim();
+
+        if (allowedSizes.length && !allowedSizes.includes(requestedSize)) {
+          return res.status(400).json({ message: `Choose a valid size for ${product.name}.` });
+        }
+        if (allowedColors.length && !allowedColors.includes(requestedColor)) {
+          return res.status(400).json({ message: `Choose a valid color for ${product.name}.` });
+        }
+        const selectedSize = allowedSizes.length ? requestedSize : "";
+        const selectedColor = allowedColors.length ? requestedColor : "";
+
         itemsForDatabase.push({
           productCategory: 'giftbox-item',
           productId: item.id,
@@ -292,6 +310,8 @@ export const createOrder = async (req, res) => {
             product.images && product.images.length > 0
               ? product.images[0]
               : null,
+          ...(selectedSize && { selectedSize }),
+          ...(selectedColor && { selectedColor }),
           ...(verifiedPersonalization && { personalization: verifiedPersonalization }),
         });
       }

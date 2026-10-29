@@ -22,6 +22,8 @@ const sendOrderEmail = async (to, name, orderId, orderItems, totalAmount) => {
       <li>
         <strong>Item name: ${item.name}</strong><br/> 
         Quantity: ${item.quantity}<br/>
+        ${item.selectedSize ? `Size: ${item.selectedSize}<br/>` : ""}
+        ${item.selectedColor ? `Color: ${item.selectedColor}<br/>` : ""}
         Price: PKR${item.priceAtTimeOfOrder.toFixed(2)}
       </li>`
     )

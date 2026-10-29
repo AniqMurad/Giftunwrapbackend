@@ -37,6 +37,8 @@ const orderItemSchema = new mongoose.Schema({
     quantity: { type: Number, required: true, min: 1 },
     priceAtTimeOfOrder: { type: Number, required: true }, 
     imageUrl: { type: String },
+    selectedSize: { type: String },
+    selectedColor: { type: String },
     personalization: { type: productPersonalizationSchema }
 });
 

@@ -7,6 +7,18 @@ import Counter from "../models/Counter.js";
 
 const MAX_PRODUCT_IMAGES = 10;
 
+const normalizeOptionList = (values) => [...new Set((Array.isArray(values) ? values : [])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean))];
+
+const normalizeProductOptions = (product) => {
+    product.sizeOptions = normalizeOptionList(product.sizeOptions);
+    product.colorOptions = normalizeOptionList(product.colorOptions);
+    product.showSizeOptions = Boolean(product.showSizeOptions && product.sizeOptions.length);
+    product.showColorOptions = Boolean(product.showColorOptions && product.colorOptions.length);
+    return product;
+};
+
 const getUploadedFiles = (files, fieldName) => {
     if (Array.isArray(files)) return files.filter((file) => file.fieldname === fieldName);
     return Array.isArray(files?.[fieldName]) ? files[fieldName] : [];
@@ -168,7 +180,7 @@ export const deleteAllProducts = async (req, res) => {
 export const createProductCategory = async (req, res) => {
     try {
         const { category } = req.body;
-        const productData = JSON.parse(req.body.products)[0];
+        const productData = normalizeProductOptions(JSON.parse(req.body.products)[0]);
 
         const uploadedUrls = getUploadedFiles(req.files, "images").map((file) => file.path);
         if (uploadedUrls.length === 0) {
@@ -320,6 +332,14 @@ export const updateProductById = async (req, res) => {
         if (updatedProductData.metaDescription !== undefined) productToUpdate.metaDescription = updatedProductData.metaDescription;
         if (updatedProductData.showWhatsInside !== undefined) productToUpdate.showWhatsInside = Boolean(updatedProductData.showWhatsInside);
         if (updatedProductData.showPackaging !== undefined) productToUpdate.showPackaging = Boolean(updatedProductData.showPackaging);
+        if (updatedProductData.sizeOptions !== undefined) productToUpdate.sizeOptions = normalizeOptionList(updatedProductData.sizeOptions);
+        if (updatedProductData.showSizeOptions !== undefined) {
+            productToUpdate.showSizeOptions = Boolean(updatedProductData.showSizeOptions && productToUpdate.sizeOptions.length);
+        }
+        if (updatedProductData.colorOptions !== undefined) productToUpdate.colorOptions = normalizeOptionList(updatedProductData.colorOptions);
+        if (updatedProductData.showColorOptions !== undefined) {
+            productToUpdate.showColorOptions = Boolean(updatedProductData.showColorOptions && productToUpdate.colorOptions.length);
+        }
         if (updatedProductData.whatsInside !== undefined) {
             updatedProductData.whatsInside = applyWhatsInsideImageUploads(updatedProductData.whatsInside, req.files);
             const resolvedContents = await resolveWhatsInsideItems(updatedProductData.whatsInside);
