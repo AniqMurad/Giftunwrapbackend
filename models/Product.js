@@ -56,6 +56,8 @@ const productSchema = new mongoose.Schema({
             longDescription: { type: String },
             metaTitle: { type: String },
             metaDescription: { type: String },
+            showWhatsInside: { type: Boolean, default: false },
+            showPackaging: { type: Boolean, default: false },
             whatsInside: { type: [whatsInsideItemSchema], default: [] },
             reviews: [reviewSchema] 
         }

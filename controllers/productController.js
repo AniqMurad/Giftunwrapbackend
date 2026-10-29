@@ -318,6 +318,8 @@ export const updateProductById = async (req, res) => {
         if (updatedProductData.longDescription !== undefined) productToUpdate.longDescription = updatedProductData.longDescription;
         if (updatedProductData.metaTitle !== undefined) productToUpdate.metaTitle = updatedProductData.metaTitle;
         if (updatedProductData.metaDescription !== undefined) productToUpdate.metaDescription = updatedProductData.metaDescription;
+        if (updatedProductData.showWhatsInside !== undefined) productToUpdate.showWhatsInside = Boolean(updatedProductData.showWhatsInside);
+        if (updatedProductData.showPackaging !== undefined) productToUpdate.showPackaging = Boolean(updatedProductData.showPackaging);
         if (updatedProductData.whatsInside !== undefined) {
             updatedProductData.whatsInside = applyWhatsInsideImageUploads(updatedProductData.whatsInside, req.files);
             const resolvedContents = await resolveWhatsInsideItems(updatedProductData.whatsInside);
