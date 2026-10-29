@@ -7,9 +7,24 @@ import Counter from "../models/Counter.js";
 
 const MAX_PRODUCT_IMAGES = 10;
 
-const normalizeOptionList = (values) => [...new Set((Array.isArray(values) ? values : [])
-    .map((value) => String(value || "").trim())
-    .filter(Boolean))];
+const normalizeSizeOptions = (values, fallbackPrice) => {
+    const normalizedFallback = Number(fallbackPrice);
+    const byName = new Map();
+
+    (Array.isArray(values) ? values : []).forEach((entry) => {
+        const source = typeof entry === "string" ? { name: entry } : (entry || {});
+        const name = String(source.name || source.size || "").trim();
+        if (!name) return;
+        const requestedPrice = Number(source.price);
+        const price = Number.isFinite(requestedPrice) && requestedPrice > 0
+            ? requestedPrice
+            : normalizedFallback;
+        if (!Number.isFinite(price) || price <= 0) return;
+        byName.set(name.toLowerCase(), { name, price });
+    });
+
+    return [...byName.values()];
+};
 
 const normalizeHex = (value) => /^#[0-9a-f]{6}$/i.test(String(value || "").trim())
     ? String(value).trim().toUpperCase()
@@ -44,7 +59,7 @@ const normalizeColorOptions = (values, images = []) => {
 };
 
 const normalizeProductOptions = (product, images = product.images) => {
-    product.sizeOptions = normalizeOptionList(product.sizeOptions);
+    product.sizeOptions = normalizeSizeOptions(product.sizeOptions, product.price);
     product.colorOptions = normalizeColorOptions(product.colorOptions, images);
     product.showSizeOptions = Boolean(product.showSizeOptions && product.sizeOptions.length);
     product.showColorOptions = Boolean(product.showColorOptions && product.colorOptions.length);
@@ -365,7 +380,7 @@ export const updateProductById = async (req, res) => {
         if (updatedProductData.metaDescription !== undefined) productToUpdate.metaDescription = updatedProductData.metaDescription;
         if (updatedProductData.showWhatsInside !== undefined) productToUpdate.showWhatsInside = Boolean(updatedProductData.showWhatsInside);
         if (updatedProductData.showPackaging !== undefined) productToUpdate.showPackaging = Boolean(updatedProductData.showPackaging);
-        if (updatedProductData.sizeOptions !== undefined) productToUpdate.sizeOptions = normalizeOptionList(updatedProductData.sizeOptions);
+        if (updatedProductData.sizeOptions !== undefined) productToUpdate.sizeOptions = normalizeSizeOptions(updatedProductData.sizeOptions, productToUpdate.price);
         if (updatedProductData.showSizeOptions !== undefined) {
             productToUpdate.showSizeOptions = Boolean(updatedProductData.showSizeOptions && productToUpdate.sizeOptions.length);
         }

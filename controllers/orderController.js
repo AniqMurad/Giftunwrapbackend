@@ -218,17 +218,13 @@ export const createOrder = async (req, res) => {
             });
         }
 
-        const itemPrice = product.price;
-        if (item.price !== itemPrice) {
-          console.warn(
-            `Price mismatch for item ${item.name} (ID: ${item.id}). Frontend: ${item.price}, Backend: ${itemPrice}`
-          );
-        }
-
-        calculatedSubtotal += itemPrice * item.quantity;
-
-        const allowedSizes = product.showSizeOptions
-          ? (product.sizeOptions || []).map((value) => String(value).trim()).filter(Boolean)
+        const allowedSizeOptions = product.showSizeOptions
+          ? (product.sizeOptions || []).map((value) => typeof value === "string"
+            ? { name: String(value).trim(), price: Number(product.price) }
+            : {
+                name: String(value?.name || value?.size || "").trim(),
+                price: Number(value?.price),
+              }).filter((value) => value.name && Number.isFinite(value.price) && value.price > 0)
           : [];
         const allowedColorOptions = product.showColorOptions
           ? (product.colorOptions || []).map((value) => typeof value === "string"
@@ -242,15 +238,25 @@ export const createOrder = async (req, res) => {
         const requestedSize = String(item.selectedSize || "").trim();
         const requestedColor = String(item.selectedColor || "").trim();
 
-        if (allowedSizes.length && !allowedSizes.includes(requestedSize)) {
+        const selectedSizeOption = allowedSizeOptions.find((value) => value.name === requestedSize);
+        if (allowedSizeOptions.length && !selectedSizeOption) {
           return res.status(400).json({ message: `Choose a valid size for ${product.name}.` });
         }
         const selectedColorOption = allowedColorOptions.find((value) => value.name === requestedColor);
         if (allowedColorOptions.length && !selectedColorOption) {
           return res.status(400).json({ message: `Choose a valid color for ${product.name}.` });
         }
-        const selectedSize = allowedSizes.length ? requestedSize : "";
+        const selectedSize = allowedSizeOptions.length ? requestedSize : "";
         const selectedColor = allowedColorOptions.length ? requestedColor : "";
+        const itemPrice = selectedSizeOption?.price || Number(product.price);
+
+        if (Number(item.price) !== itemPrice) {
+          console.warn(
+            `Price mismatch for item ${item.name} (ID: ${item.id}). Frontend: ${item.price}, Backend: ${itemPrice}`
+          );
+        }
+
+        calculatedSubtotal += itemPrice * item.quantity;
 
         let verifiedPersonalization;
         if (item.personalization?.card) {
