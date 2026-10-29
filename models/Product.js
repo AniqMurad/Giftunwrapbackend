@@ -61,7 +61,7 @@ const productSchema = new mongoose.Schema({
             showSizeOptions: { type: Boolean, default: false },
             sizeOptions: { type: [String], default: [] },
             showColorOptions: { type: Boolean, default: false },
-            colorOptions: { type: [String], default: [] },
+            colorOptions: { type: [mongoose.Schema.Types.Mixed], default: [] },
             whatsInside: { type: [whatsInsideItemSchema], default: [] },
             reviews: [reviewSchema] 
         }

@@ -11,9 +11,41 @@ const normalizeOptionList = (values) => [...new Set((Array.isArray(values) ? val
     .map((value) => String(value || "").trim())
     .filter(Boolean))];
 
-const normalizeProductOptions = (product) => {
+const normalizeHex = (value) => /^#[0-9a-f]{6}$/i.test(String(value || "").trim())
+    ? String(value).trim().toUpperCase()
+    : "#000000";
+
+const normalizeColorOptions = (values, images = []) => {
+    const normalizedImages = Array.isArray(images) ? images.filter(Boolean) : [];
+    const byName = new Map();
+
+    (Array.isArray(values) ? values : []).forEach((entry) => {
+        const source = typeof entry === "string" ? { name: entry } : (entry || {});
+        const name = String(source.name || source.color || "").trim();
+        if (!name) return;
+
+        const requestedImage = String(source.image || "").trim();
+        const hasRequestedIndex = source.imageIndex !== "" && source.imageIndex !== null && source.imageIndex !== undefined;
+        const requestedIndex = Number(source.imageIndex);
+        const image = requestedImage && normalizedImages.includes(requestedImage)
+            ? requestedImage
+            : hasRequestedIndex && Number.isInteger(requestedIndex) && requestedIndex >= 0
+                ? normalizedImages[requestedIndex] || ""
+                : "";
+
+        byName.set(name.toLowerCase(), {
+            name,
+            hex: normalizeHex(source.hex),
+            ...(image ? { image } : {}),
+        });
+    });
+
+    return [...byName.values()];
+};
+
+const normalizeProductOptions = (product, images = product.images) => {
     product.sizeOptions = normalizeOptionList(product.sizeOptions);
-    product.colorOptions = normalizeOptionList(product.colorOptions);
+    product.colorOptions = normalizeColorOptions(product.colorOptions, images);
     product.showSizeOptions = Boolean(product.showSizeOptions && product.sizeOptions.length);
     product.showColorOptions = Boolean(product.showColorOptions && product.colorOptions.length);
     return product;
@@ -180,7 +212,7 @@ export const deleteAllProducts = async (req, res) => {
 export const createProductCategory = async (req, res) => {
     try {
         const { category } = req.body;
-        const productData = normalizeProductOptions(JSON.parse(req.body.products)[0]);
+        const productData = JSON.parse(req.body.products)[0];
 
         const uploadedUrls = getUploadedFiles(req.files, "images").map((file) => file.path);
         if (uploadedUrls.length === 0) {
@@ -190,6 +222,7 @@ export const createProductCategory = async (req, res) => {
             return res.status(400).json({ message: `A product can have up to ${MAX_PRODUCT_IMAGES} images.` });
         }
         productData.images = uploadedUrls;
+        normalizeProductOptions(productData, uploadedUrls);
         productData.whatsInside = applyWhatsInsideImageUploads(productData.whatsInside, req.files);
         const resolvedContents = await resolveWhatsInsideItems(productData.whatsInside);
         if (resolvedContents.missingIds.length > 0) {
@@ -336,7 +369,7 @@ export const updateProductById = async (req, res) => {
         if (updatedProductData.showSizeOptions !== undefined) {
             productToUpdate.showSizeOptions = Boolean(updatedProductData.showSizeOptions && productToUpdate.sizeOptions.length);
         }
-        if (updatedProductData.colorOptions !== undefined) productToUpdate.colorOptions = normalizeOptionList(updatedProductData.colorOptions);
+        if (updatedProductData.colorOptions !== undefined) productToUpdate.colorOptions = normalizeColorOptions(updatedProductData.colorOptions, productToUpdate.images);
         if (updatedProductData.showColorOptions !== undefined) {
             productToUpdate.showColorOptions = Boolean(updatedProductData.showColorOptions && productToUpdate.colorOptions.length);
         }
