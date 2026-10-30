@@ -26,11 +26,9 @@ const reviewSchema = new mongoose.Schema({
 });
 
 const whatsInsideItemSchema = new mongoose.Schema({
-    giftBoxItemId: { type: Number, index: true },
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
-    image: { type: String },
-    imageOverride: { type: Boolean, default: false }
+    image: { type: String }
 }, { _id: false });
 
 const productSchema = new mongoose.Schema({

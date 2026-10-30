@@ -1,7 +1,6 @@
 import Product from "../models/Product.js";
 import mongoose from "mongoose";
 import User from "../models/User.js";
-import GiftBoxItem from "../models/GiftBoxItem.js";
 import { getNextProductId } from "../utils/getNextProductId.js";
 import Counter from "../models/Counter.js";
 
@@ -72,81 +71,26 @@ const getUploadedFiles = (files, fieldName) => {
 };
 
 const applyWhatsInsideImageUploads = (items, files) => (Array.isArray(items) ? items : []).map((item, index) => {
+    const source = typeof item === "string" ? { name: item } : (item || {});
     const uploadedImage = getUploadedFiles(files, `whatsInsideImage_${index}`)[0];
     return uploadedImage
-        ? { ...item, image: uploadedImage.path, imageOverride: true }
-        : item;
+        ? { ...source, image: uploadedImage.path }
+        : source;
 });
 
-const giftBoxItemSnapshot = (item, storedItem = {}) => ({
-    giftBoxItemId: item.id,
-    name: item.name,
-    ...(item.description ? { description: item.description } : {}),
-    image: storedItem.imageOverride && storedItem.image ? storedItem.image : item.image,
-    ...(storedItem.imageOverride && storedItem.image ? { imageOverride: true } : {}),
-});
-
-const legacyWhatsInsideItem = (item) => {
+const normalizeWhatsInsideItem = (item) => {
     const name = String(item?.name || "").trim();
     if (!name) return null;
     return {
         name,
         ...(String(item?.description || "").trim() ? { description: String(item.description).trim() } : {}),
         ...(typeof item?.image === "string" && item.image.trim() ? { image: item.image.trim() } : {}),
-        ...(item?.imageOverride === true ? { imageOverride: true } : {}),
     };
 };
 
-const resolveWhatsInsideItems = async (items) => {
-    if (!Array.isArray(items)) return { items: [], missingIds: [] };
-
-    const requestedIds = [...new Set(items
-        .map((item) => Number(item?.giftBoxItemId))
-        .filter((id) => Number.isInteger(id) && id > 0))];
-    const catalogueItems = requestedIds.length
-        ? await GiftBoxItem.find({ id: { $in: requestedIds } }).lean()
-        : [];
-    const catalogueById = new Map(catalogueItems.map((item) => [item.id, item]));
-    const missingIds = requestedIds.filter((id) => !catalogueById.has(id));
-
-    const resolvedItems = items.flatMap((item) => {
-        const giftBoxItemId = Number(item?.giftBoxItemId);
-        if (Number.isInteger(giftBoxItemId) && giftBoxItemId > 0) {
-            const catalogueItem = catalogueById.get(giftBoxItemId);
-            return catalogueItem ? [giftBoxItemSnapshot(catalogueItem, item)] : [];
-        }
-        const legacyItem = legacyWhatsInsideItem(item);
-        return legacyItem ? [legacyItem] : [];
-    });
-
-    return { items: resolvedItems, missingIds };
-};
-
-const hydrateProductContents = async (categoryDocuments) => {
-    const giftBoxItemIds = [...new Set(categoryDocuments.flatMap((category) =>
-        (category.products || []).flatMap((product) =>
-            (product.whatsInside || [])
-                .map((item) => Number(item.giftBoxItemId))
-                .filter((id) => Number.isInteger(id) && id > 0)
-        )
-    ))];
-
-    if (giftBoxItemIds.length === 0) return categoryDocuments;
-
-    const catalogueItems = await GiftBoxItem.find({ id: { $in: giftBoxItemIds } }).lean();
-    const catalogueById = new Map(catalogueItems.map((item) => [item.id, item]));
-
-    return categoryDocuments.map((category) => ({
-        ...category,
-        products: (category.products || []).map((product) => ({
-            ...product,
-            whatsInside: (product.whatsInside || []).map((storedItem) => {
-                const catalogueItem = catalogueById.get(Number(storedItem.giftBoxItemId));
-                return catalogueItem ? giftBoxItemSnapshot(catalogueItem, storedItem) : storedItem;
-            }),
-        })),
-    }));
-};
+const normalizeWhatsInsideItems = (items) => (Array.isArray(items) ? items : [])
+    .map(normalizeWhatsInsideItem)
+    .filter(Boolean);
 
 export const resetProductCounter = async (req, res) => {
     try {
@@ -160,7 +104,7 @@ export const resetProductCounter = async (req, res) => {
 export const getAllProducts = async (req, res) => {
     try {
         const products = await Product.find().lean();
-        res.json(await hydrateProductContents(products));
+        res.json(products);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -238,12 +182,9 @@ export const createProductCategory = async (req, res) => {
         }
         productData.images = uploadedUrls;
         normalizeProductOptions(productData, uploadedUrls);
-        productData.whatsInside = applyWhatsInsideImageUploads(productData.whatsInside, req.files);
-        const resolvedContents = await resolveWhatsInsideItems(productData.whatsInside);
-        if (resolvedContents.missingIds.length > 0) {
-            return res.status(400).json({ message: "One or more selected Gift Box Items no longer exist." });
-        }
-        productData.whatsInside = resolvedContents.items;
+        productData.whatsInside = normalizeWhatsInsideItems(
+            applyWhatsInsideImageUploads(productData.whatsInside, req.files)
+        );
 
         // ✅ AUTO GLOBAL ID HERE
         productData.id = await getNextProductId();
@@ -389,12 +330,9 @@ export const updateProductById = async (req, res) => {
             productToUpdate.showColorOptions = Boolean(updatedProductData.showColorOptions && productToUpdate.colorOptions.length);
         }
         if (updatedProductData.whatsInside !== undefined) {
-            updatedProductData.whatsInside = applyWhatsInsideImageUploads(updatedProductData.whatsInside, req.files);
-            const resolvedContents = await resolveWhatsInsideItems(updatedProductData.whatsInside);
-            if (resolvedContents.missingIds.length > 0) {
-                return res.status(400).json({ message: "One or more selected Gift Box Items no longer exist." });
-            }
-            productToUpdate.whatsInside = resolvedContents.items;
+            productToUpdate.whatsInside = normalizeWhatsInsideItems(
+                applyWhatsInsideImageUploads(updatedProductData.whatsInside, req.files)
+            );
         }
         if (updatedProductData.brand !== undefined) productToUpdate.brand = updatedProductData.brand;
         if (updatedProductData.countInStock !== undefined) productToUpdate.countInStock = updatedProductData.countInStock;
