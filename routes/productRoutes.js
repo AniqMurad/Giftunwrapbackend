@@ -9,9 +9,12 @@ import {
     deleteProductReview, 
     deleteAllProducts,
     updateProductById,
-    resetProductCounter
+    resetProductCounter,
+    validateCustomerPersonalizationProduct,
+    uploadCustomerPersonalizationImage
 } from '../controllers/productController.js';
 import upload from '../middleware/upload.js'; 
+import customerImageUpload from '../middleware/customerImageUpload.js';
 
 const router = express.Router();
 
@@ -22,6 +25,13 @@ router.post('/reset-counter', resetProductCounter);
 
 // gets all products on admin portal
 router.get('/', getAllProducts);
+
+router.post(
+    '/:productId/personalization-images',
+    validateCustomerPersonalizationProduct,
+    customerImageUpload.single('image'),
+    uploadCustomerPersonalizationImage
+);
 
 router.delete('/delete', deleteAllProducts);
 

@@ -259,6 +259,31 @@ export const createOrder = async (req, res) => {
         calculatedSubtotal += itemPrice * item.quantity;
 
         let verifiedPersonalization;
+        if (product.requiresCustomerImages) {
+          const requestedImages = Array.isArray(item.personalization?.customerImages)
+            ? item.personalization.customerImages
+            : [];
+          const customerImageLimit = Math.min(30, Math.max(1, Number(product.customerImageLimit) || 1));
+          if (requestedImages.length < 1 || requestedImages.length > customerImageLimit) {
+            return res.status(400).json({
+              message: `Upload between 1 and ${customerImageLimit} photo${customerImageLimit === 1 ? "" : "s"} for ${product.name}.`,
+            });
+          }
+          const invalidImage = requestedImages.some((image) => (
+            !String(image?.url || "").startsWith("https://")
+            || !String(image?.publicId || "").startsWith(`customer-personalization/${product.id}/`)
+          ));
+          if (invalidImage) {
+            return res.status(400).json({ message: `One or more photos for ${product.name} are invalid.` });
+          }
+          verifiedPersonalization = {
+            customerImages: requestedImages.map((image) => ({
+              url: String(image.url),
+              publicId: String(image.publicId),
+              originalName: String(image.originalName || "customer-photo").slice(0, 180),
+            })),
+          };
+        }
         if (item.personalization?.card) {
           const requestedCard = item.personalization.card;
           const cardCategory = requestedCard.productCategory || "greetingCards";
@@ -274,6 +299,7 @@ export const createOrder = async (req, res) => {
           const cardPrice = Number(cardProduct.price) || 0;
           calculatedSubtotal += cardPrice * item.quantity;
           verifiedPersonalization = {
+            ...(verifiedPersonalization || {}),
             card: {
               id: cardProduct.id,
               name: cardProduct.name,
@@ -308,6 +334,7 @@ export const createOrder = async (req, res) => {
           }
 
           verifiedPersonalization = {
+            ...(verifiedPersonalization || {}),
             messageMode,
             ...(messageMode === "write" && { from, to, message }),
           };

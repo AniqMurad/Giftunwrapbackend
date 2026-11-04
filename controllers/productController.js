@@ -5,6 +5,16 @@ import { getNextProductId } from "../utils/getNextProductId.js";
 import Counter from "../models/Counter.js";
 
 const MAX_PRODUCT_IMAGES = 10;
+const MAX_CUSTOMER_IMAGES = 30;
+
+const normalizeCustomerImageOptions = (product) => {
+    product.requiresCustomerImages = Boolean(product.requiresCustomerImages);
+    const requestedLimit = Number(product.customerImageLimit);
+    product.customerImageLimit = Number.isInteger(requestedLimit)
+        ? Math.min(MAX_CUSTOMER_IMAGES, Math.max(1, requestedLimit))
+        : 1;
+    return product;
+};
 
 const normalizeSizeOptions = (values, fallbackPrice) => {
     const normalizedFallback = Number(fallbackPrice);
@@ -62,6 +72,7 @@ const normalizeProductOptions = (product, images = product.images) => {
     product.colorOptions = normalizeColorOptions(product.colorOptions, images);
     product.showSizeOptions = Boolean(product.showSizeOptions && product.sizeOptions.length);
     product.showColorOptions = Boolean(product.showColorOptions && product.colorOptions.length);
+    normalizeCustomerImageOptions(product);
     return product;
 };
 
@@ -182,6 +193,10 @@ export const createProductCategory = async (req, res) => {
         }
         productData.images = uploadedUrls;
         normalizeProductOptions(productData, uploadedUrls);
+        if (category !== "personalized") {
+            productData.requiresCustomerImages = false;
+            productData.customerImageLimit = 1;
+        }
         productData.whatsInside = normalizeWhatsInsideItems(
             applyWhatsInsideImageUploads(productData.whatsInside, req.files)
         );
@@ -329,6 +344,20 @@ export const updateProductById = async (req, res) => {
         if (updatedProductData.showColorOptions !== undefined) {
             productToUpdate.showColorOptions = Boolean(updatedProductData.showColorOptions && productToUpdate.colorOptions.length);
         }
+        if (updatedProductData.requiresCustomerImages !== undefined) {
+            productToUpdate.requiresCustomerImages = categoryDoc.category === "personalized"
+                && Boolean(updatedProductData.requiresCustomerImages);
+        }
+        if (updatedProductData.customerImageLimit !== undefined) {
+            const requestedLimit = Number(updatedProductData.customerImageLimit);
+            productToUpdate.customerImageLimit = Number.isInteger(requestedLimit)
+                ? Math.min(MAX_CUSTOMER_IMAGES, Math.max(1, requestedLimit))
+                : 1;
+        }
+        if (categoryDoc.category !== "personalized") {
+            productToUpdate.requiresCustomerImages = false;
+            productToUpdate.customerImageLimit = 1;
+        }
         if (updatedProductData.whatsInside !== undefined) {
             productToUpdate.whatsInside = normalizeWhatsInsideItems(
                 applyWhatsInsideImageUploads(updatedProductData.whatsInside, req.files)
@@ -355,6 +384,45 @@ export const updateProductById = async (req, res) => {
     } catch (error) {
         console.error("Error updating product (catch block):", error);
         res.status(500).json({ message: "Failed to update product", error: error.message, stack: error.stack });
+    }
+};
+
+export const validateCustomerPersonalizationProduct = async (req, res, next) => {
+    try {
+        const numericProductId = Number(req.params.productId);
+        if (!Number.isInteger(numericProductId)) {
+            return res.status(400).json({ message: "Invalid product ID." });
+        }
+
+        const categoryDoc = await Product.findOne({ "products.id": numericProductId }).lean();
+        const product = categoryDoc?.products?.find((entry) => entry.id === numericProductId);
+        if (!product) return res.status(404).json({ message: "Product not found." });
+        if (!product.requiresCustomerImages) {
+            return res.status(400).json({ message: "This product does not accept customer photos." });
+        }
+
+        req.customerImageProduct = product;
+        return next();
+    } catch (error) {
+        return res.status(500).json({ message: "Failed to validate the personalized product.", error: error.message });
+    }
+};
+
+export const uploadCustomerPersonalizationImage = async (req, res) => {
+    try {
+        const product = req.customerImageProduct;
+        if (!req.file?.path || !req.file?.filename) {
+            return res.status(400).json({ message: "Choose a valid JPG, PNG, or WEBP image." });
+        }
+
+        return res.status(201).json({
+            url: req.file.path,
+            publicId: req.file.filename,
+            originalName: String(req.file.originalname || "customer-photo").slice(0, 180),
+            limit: Math.min(MAX_CUSTOMER_IMAGES, Math.max(1, Number(product.customerImageLimit) || 1)),
+        });
+    } catch (error) {
+        return res.status(500).json({ message: "Failed to upload the personalization photo.", error: error.message });
     }
 };
 

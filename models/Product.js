@@ -60,6 +60,8 @@ const productSchema = new mongoose.Schema({
             sizeOptions: { type: [mongoose.Schema.Types.Mixed], default: [] },
             showColorOptions: { type: Boolean, default: false },
             colorOptions: { type: [mongoose.Schema.Types.Mixed], default: [] },
+            requiresCustomerImages: { type: Boolean, default: false },
+            customerImageLimit: { type: Number, min: 1, max: 30, default: 1 },
             whatsInside: { type: [whatsInsideItemSchema], default: [] },
             reviews: [reviewSchema] 
         }

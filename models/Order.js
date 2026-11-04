@@ -15,6 +15,11 @@ const shippingAddressSchema = new mongoose.Schema({
 });
 
 const productPersonalizationSchema = new mongoose.Schema({
+    customerImages: [{
+        url: { type: String, required: true },
+        publicId: { type: String, required: true },
+        originalName: { type: String }
+    }],
     card: {
         id: { type: Number },
         name: { type: String },
