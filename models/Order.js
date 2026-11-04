@@ -32,7 +32,11 @@ const productPersonalizationSchema = new mongoose.Schema({
     messageMode: { type: String, enum: ['write', 'blank'] },
     from: { type: String },
     to: { type: String },
-    message: { type: String }
+    message: { type: String },
+    photoBundle: {
+        photoCount: { type: Number, min: 1, max: 30 },
+        price: { type: Number, min: 0 }
+    }
 }, { _id: false });
 
 const orderItemSchema = new mongoose.Schema({

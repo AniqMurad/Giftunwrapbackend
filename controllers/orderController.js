@@ -248,7 +248,24 @@ export const createOrder = async (req, res) => {
         }
         const selectedSize = allowedSizeOptions.length ? requestedSize : "";
         const selectedColor = allowedColorOptions.length ? requestedColor : "";
-        const itemPrice = selectedSizeOption?.price || Number(product.price);
+        const allowedPhotoBundles = product.requiresCustomerImages && product.showPhotoBundleOptions
+          ? (product.photoBundleOptions || []).map((option) => ({
+              photoCount: Number(option?.photoCount ?? option?.count),
+              price: Number(option?.price),
+            })).filter((option) => (
+              Number.isInteger(option.photoCount)
+              && option.photoCount >= 1
+              && option.photoCount <= 30
+              && Number.isFinite(option.price)
+              && option.price > 0
+            ))
+          : [];
+        const requestedPhotoCount = Number(item.personalization?.photoBundle?.photoCount);
+        const selectedPhotoBundle = allowedPhotoBundles.find((option) => option.photoCount === requestedPhotoCount);
+        if (allowedPhotoBundles.length && !selectedPhotoBundle) {
+          return res.status(400).json({ message: `Choose a valid photo bundle for ${product.name}.` });
+        }
+        const itemPrice = selectedPhotoBundle?.price || selectedSizeOption?.price || Number(product.price);
 
         if (Number(item.price) !== itemPrice) {
           console.warn(
@@ -263,7 +280,8 @@ export const createOrder = async (req, res) => {
           const requestedImages = Array.isArray(item.personalization?.customerImages)
             ? item.personalization.customerImages
             : [];
-          const customerImageLimit = Math.min(30, Math.max(1, Number(product.customerImageLimit) || 1));
+          const customerImageLimit = selectedPhotoBundle?.photoCount
+            || Math.min(30, Math.max(1, Number(product.customerImageLimit) || 1));
           if (requestedImages.length < 1 || requestedImages.length > customerImageLimit) {
             return res.status(400).json({
               message: `Upload between 1 and ${customerImageLimit} photo${customerImageLimit === 1 ? "" : "s"} for ${product.name}.`,
@@ -282,6 +300,7 @@ export const createOrder = async (req, res) => {
               publicId: String(image.publicId),
               originalName: String(image.originalName || "customer-photo").slice(0, 180),
             })),
+            ...(selectedPhotoBundle && { photoBundle: selectedPhotoBundle }),
           };
         }
         if (item.personalization?.card) {

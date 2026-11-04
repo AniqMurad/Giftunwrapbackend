@@ -7,12 +7,36 @@ import Counter from "../models/Counter.js";
 const MAX_PRODUCT_IMAGES = 10;
 const MAX_CUSTOMER_IMAGES = 30;
 
+const normalizePhotoBundleOptions = (values) => {
+    const byCount = new Map();
+    (Array.isArray(values) ? values : []).forEach((entry) => {
+        const photoCount = Number(entry?.photoCount ?? entry?.count);
+        const price = Number(entry?.price);
+        if (!Number.isInteger(photoCount) || photoCount < 1 || photoCount > MAX_CUSTOMER_IMAGES) return;
+        if (!Number.isFinite(price) || price <= 0) return;
+        byCount.set(photoCount, { photoCount, price });
+    });
+    return [...byCount.values()].sort((a, b) => a.photoCount - b.photoCount);
+};
+
 const normalizeCustomerImageOptions = (product) => {
     product.requiresCustomerImages = Boolean(product.requiresCustomerImages);
+    product.photoBundleOptions = normalizePhotoBundleOptions(product.photoBundleOptions);
+    product.showPhotoBundleOptions = Boolean(
+        product.requiresCustomerImages
+        && product.showPhotoBundleOptions
+        && product.photoBundleOptions.length
+    );
     const requestedLimit = Number(product.customerImageLimit);
-    product.customerImageLimit = Number.isInteger(requestedLimit)
+    product.customerImageLimit = product.showPhotoBundleOptions
+        ? Math.max(...product.photoBundleOptions.map((option) => option.photoCount))
+        : Number.isInteger(requestedLimit)
         ? Math.min(MAX_CUSTOMER_IMAGES, Math.max(1, requestedLimit))
         : 1;
+    if (!product.requiresCustomerImages) {
+        product.showPhotoBundleOptions = false;
+        product.photoBundleOptions = [];
+    }
     return product;
 };
 
@@ -196,6 +220,8 @@ export const createProductCategory = async (req, res) => {
         if (category !== "personalized") {
             productData.requiresCustomerImages = false;
             productData.customerImageLimit = 1;
+            productData.showPhotoBundleOptions = false;
+            productData.photoBundleOptions = [];
         }
         productData.whatsInside = normalizeWhatsInsideItems(
             applyWhatsInsideImageUploads(productData.whatsInside, req.files)
@@ -354,9 +380,26 @@ export const updateProductById = async (req, res) => {
                 ? Math.min(MAX_CUSTOMER_IMAGES, Math.max(1, requestedLimit))
                 : 1;
         }
+        if (updatedProductData.photoBundleOptions !== undefined) {
+            productToUpdate.photoBundleOptions = normalizePhotoBundleOptions(updatedProductData.photoBundleOptions);
+        }
+        if (updatedProductData.showPhotoBundleOptions !== undefined) {
+            productToUpdate.showPhotoBundleOptions = Boolean(
+                productToUpdate.requiresCustomerImages
+                && updatedProductData.showPhotoBundleOptions
+                && productToUpdate.photoBundleOptions.length
+            );
+            if (productToUpdate.showPhotoBundleOptions) {
+                productToUpdate.customerImageLimit = Math.max(
+                    ...productToUpdate.photoBundleOptions.map((option) => option.photoCount)
+                );
+            }
+        }
         if (categoryDoc.category !== "personalized") {
             productToUpdate.requiresCustomerImages = false;
             productToUpdate.customerImageLimit = 1;
+            productToUpdate.showPhotoBundleOptions = false;
+            productToUpdate.photoBundleOptions = [];
         }
         if (updatedProductData.whatsInside !== undefined) {
             productToUpdate.whatsInside = normalizeWhatsInsideItems(
