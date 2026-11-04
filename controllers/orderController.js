@@ -9,6 +9,14 @@ const FREE_SHIPPING_THRESHOLD = 5000;
 
 export const createOrder = async (req, res) => {
   try {
+    let requestBody = req.body;
+    if (req.body?.orderData) {
+      try {
+        requestBody = JSON.parse(req.body.orderData);
+      } catch {
+        return res.status(400).json({ message: "Invalid order data." });
+      }
+    }
     const {
       userId,
       shippingInfo,
@@ -19,7 +27,7 @@ export const createOrder = async (req, res) => {
       selectedBox,
       selectedCard,
       cardMessage,
-    } = req.body;
+    } = requestBody;
 
     if (
       !shippingInfo ||
@@ -381,7 +389,11 @@ export const createOrder = async (req, res) => {
     const calculatedTotalAmount =
       calculatedSubtotal + calculatedShippingCost - calculatedDiscountAmount;
 
-    if (paymentMethod === "creditCard") {
+    if (paymentMethod === "bankTransfer") {
+      if (!req.file?.path || !req.file?.filename) {
+        return res.status(400).json({ message: "Upload a payment transfer screenshot." });
+      }
+    } else if (paymentMethod === "creditCard") {
       if (
         !cardDetails ||
         !cardDetails.cardName ||
@@ -412,13 +424,17 @@ export const createOrder = async (req, res) => {
           paymentMethod === "creditCard"
             ? cardDetails.saveCardDetails
             : undefined,
+        paymentProofUrl:
+          paymentMethod === "bankTransfer" ? req.file.path : undefined,
+        paymentProofPublicId:
+          paymentMethod === "bankTransfer" ? req.file.filename : undefined,
       },
       orderItems: itemsForDatabase,
       subtotal: calculatedSubtotal,
       shippingCost: calculatedShippingCost,
       discountAmount: calculatedDiscountAmount,
       totalAmount: calculatedTotalAmount,
-      status: paymentMethod === "creditCard" ? "processing" : "pending",
+      status: ["bankTransfer", "creditCard"].includes(paymentMethod) ? "processing" : "pending",
     };
 
     // Add gift box specific fields if it's a gift box order

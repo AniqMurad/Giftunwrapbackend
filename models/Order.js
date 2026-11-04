@@ -52,9 +52,11 @@ const orderItemSchema = new mongoose.Schema({
 });
 
 const paymentDetailsSchema = new mongoose.Schema({
-    method: { type: String, required: true, enum: ['creditCard', 'cod'] },
+    method: { type: String, required: true, enum: ['bankTransfer', 'creditCard', 'cod'] },
     cardName: { type: String },
-    saveCardDetails: { type: Boolean, default: false } 
+    saveCardDetails: { type: Boolean, default: false },
+    paymentProofUrl: { type: String },
+    paymentProofPublicId: { type: String }
 });
 
 const orderSchema = new mongoose.Schema({
