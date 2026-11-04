@@ -28,6 +28,7 @@ const giftBoxItemSchema = new mongoose.Schema({
         index: true
     },
     image: { type: String, required: true },
+    images: [{ type: String }],
     colorVariants: [{
         color: { type: String, required: true },
         image: { type: String, required: true }

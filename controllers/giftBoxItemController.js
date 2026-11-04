@@ -8,6 +8,24 @@ const normalizeProfile = (value = 'unisex') => {
     return GIFT_BOX_PROFILES.has(normalized) ? normalized : null;
 };
 
+const uniqueImageUrls = (urls = []) => [...new Set(urls.filter(Boolean))];
+
+const getUploadedFiles = (files = []) => files.reduce((result, file) => {
+    if (!result[file.fieldname]) result[file.fieldname] = [];
+    result[file.fieldname].push(file.path);
+    return result;
+}, {});
+
+const parseRetainedImages = (value) => {
+    if (!value) return [];
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.filter(url => typeof url === 'string' && url) : [];
+    } catch {
+        return [];
+    }
+};
+
 // Get all gift box items
 export const getAllItems = async (req, res) => {
     try {
@@ -62,15 +80,13 @@ export const createItem = async (req, res) => {
             return res.status(400).json({ message: 'Profile must be For Him, For Her, or Unisex/Both' });
         }
 
-        // Build files map from upload.any()
-        const filesMap = {};
-        if (Array.isArray(req.files)) {
-            req.files.forEach(file => {
-                filesMap[file.fieldname] = file.path;
-            });
-        }
+        const uploadedFiles = getUploadedFiles(req.files);
+        const images = uniqueImageUrls([
+            ...(uploadedFiles.images || []),
+            ...(uploadedFiles.image || []),
+        ]).slice(0, 10);
 
-        if (!filesMap['image']) {
+        if (images.length === 0) {
             return res.status(400).json({ message: 'Name, price, category, and image are required' });
         }
 
@@ -83,7 +99,7 @@ export const createItem = async (req, res) => {
         const colorVariants = colorVariantsMeta
             .map((v, idx) => ({
                 color: v.color,
-                image: filesMap[`colorImage_${idx}`] || '',
+                image: uploadedFiles[`colorImage_${idx}`]?.[0] || '',
             }))
             .filter(v => v.color && v.image);
 
@@ -97,7 +113,8 @@ export const createItem = async (req, res) => {
             price: Number(price),
             category,
             profile,
-            image: filesMap['image'],
+            image: images[0],
+            images,
             colorVariants,
             description
         });
@@ -111,27 +128,38 @@ export const createItem = async (req, res) => {
 };
 
 // Update gift box item (Admin)
-// Update gift box item (Admin)
 export const updateItem = async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = { ...req.body };
 
-        // Build files map from upload.any()
-        const filesMap = {};
-        if (Array.isArray(req.files)) {
-            req.files.forEach(file => {
-                filesMap[file.fieldname] = file.path;
-            });
+        const uploadedFiles = getUploadedFiles(req.files);
+        const existingItem = await GiftBoxItem.findOne({ id: parseInt(id) });
+        if (!existingItem) {
+            return res.status(404).json({ message: 'Item not found' });
         }
 
         // Image can only be updated through multipart file upload.
         delete updateData.image;
+        delete updateData.images;
         delete updateData.colorVariants;
+        delete updateData.retainedImages;
 
-        if (filesMap['image']) {
-            updateData.image = filesMap['image'];
+        const retainedImages = req.body.retainedImages !== undefined
+            ? parseRetainedImages(req.body.retainedImages)
+            : uniqueImageUrls([...(existingItem.images || []), existingItem.image]);
+        const images = uniqueImageUrls([
+            ...retainedImages,
+            ...(uploadedFiles.images || []),
+            ...(uploadedFiles.image || []),
+        ]).slice(0, 10);
+
+        if (images.length === 0) {
+            return res.status(400).json({ message: 'At least one item image is required' });
         }
+
+        updateData.image = images[0];
+        updateData.images = images;
 
         if (updateData.price !== undefined) {
             updateData.price = Number(updateData.price);
@@ -150,11 +178,10 @@ export const updateItem = async (req, res) => {
             let colorVariantsMeta = [];
             try { colorVariantsMeta = JSON.parse(req.body.colorVariants); } catch (e) {}
 
-            const existingItem = await GiftBoxItem.findOne({ id: parseInt(id) });
             updateData.colorVariants = colorVariantsMeta
                 .map((v, idx) => ({
                     color: v.color,
-                    image: filesMap[`colorImage_${idx}`] || existingItem?.colorVariants?.[idx]?.image || '',
+                    image: uploadedFiles[`colorImage_${idx}`]?.[0] || existingItem.colorVariants?.[idx]?.image || '',
                 }))
                 .filter(v => v.color && v.image);
         }
