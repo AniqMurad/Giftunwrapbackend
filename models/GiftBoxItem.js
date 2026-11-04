@@ -21,6 +21,12 @@ const giftBoxItemSchema = new mongoose.Schema({
             'gift-cards'
         ]
     },
+    profile: {
+        type: String,
+        enum: ['for-him', 'for-her', 'unisex'],
+        default: 'unisex',
+        index: true
+    },
     image: { type: String, required: true },
     colorVariants: [{
         color: { type: String, required: true },

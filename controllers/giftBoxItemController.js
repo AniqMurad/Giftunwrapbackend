@@ -1,6 +1,13 @@
 // controllers/giftBoxItemController.js
 import GiftBoxItem from '../models/GiftBoxItem.js';
 
+const GIFT_BOX_PROFILES = new Set(['for-him', 'for-her', 'unisex']);
+
+const normalizeProfile = (value = 'unisex') => {
+    const normalized = String(value).trim().toLowerCase();
+    return GIFT_BOX_PROFILES.has(normalized) ? normalized : null;
+};
+
 // Get all gift box items
 export const getAllItems = async (req, res) => {
     try {
@@ -45,9 +52,14 @@ export const getItemById = async (req, res) => {
 export const createItem = async (req, res) => {
     try {
         const { name, price, category, description } = req.body;
+        const profile = normalizeProfile(req.body.profile);
 
         if (!name || !price || !category) {
             return res.status(400).json({ message: 'Name, price, and category are required' });
+        }
+
+        if (!profile) {
+            return res.status(400).json({ message: 'Profile must be For Him, For Her, or Unisex/Both' });
         }
 
         // Build files map from upload.any()
@@ -84,6 +96,7 @@ export const createItem = async (req, res) => {
             name,
             price: Number(price),
             category,
+            profile,
             image: filesMap['image'],
             colorVariants,
             description
@@ -124,6 +137,14 @@ export const updateItem = async (req, res) => {
             updateData.price = Number(updateData.price);
         }
 
+        if (updateData.profile !== undefined) {
+            const profile = normalizeProfile(updateData.profile);
+            if (!profile) {
+                return res.status(400).json({ message: 'Profile must be For Him, For Her, or Unisex/Both' });
+            }
+            updateData.profile = profile;
+        }
+
         // Handle color variants
         if (req.body.colorVariants !== undefined) {
             let colorVariantsMeta = [];
@@ -141,7 +162,7 @@ export const updateItem = async (req, res) => {
         const item = await GiftBoxItem.findOneAndUpdate(
             { id: parseInt(id) },
             { ...updateData, updatedAt: Date.now() },
-            { new: true }
+            { new: true, runValidators: true }
         ).lean();
 
         if (!item) {
