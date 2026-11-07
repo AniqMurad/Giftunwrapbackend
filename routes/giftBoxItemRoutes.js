@@ -7,7 +7,9 @@ import {
     createItem,
     updateItem,
     deleteItem,
-    toggleItemStock
+    toggleItemStock,
+    getCategories,
+    createCategory
 } from '../controllers/giftBoxItemController.js';
 import upload from '../middleware/upload.js';
 
@@ -15,6 +17,8 @@ const router = express.Router();
 
 // Public routes
 router.get('/', getAllItems);
+router.get('/categories', getCategories);
+router.post('/categories', createCategory);
 router.get('/category/:category', getItemsByCategory);
 router.get('/:id', getItemById);
 

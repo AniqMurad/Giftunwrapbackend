@@ -1,5 +1,44 @@
 // controllers/giftBoxItemController.js
 import GiftBoxItem from '../models/GiftBoxItem.js';
+import GiftBoxCategory from '../models/GiftBoxCategory.js';
+
+const DEFAULT_CATEGORIES = [
+    ['chocolates-snacks', 'Chocolates & Snacks'],
+    ['customised-items', 'Customised Items'],
+    ['jewellery-accessories', 'Jewellery & Accessories'],
+    ['fragrances', 'Fragrances'],
+    ['clothing', 'Clothing'],
+    ['beauty-personal-care', 'Beauty & Personal Care']
+];
+const RETIRED_CATEGORIES = new Set(['flowers', 'shoes', 'gift-cards']);
+const slugifyCategory = (value = '') => String(value).trim().toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+export const getCategories = async (_req, res) => {
+    try {
+        const custom = await GiftBoxCategory.find().sort({ name: 1 }).lean();
+        const merged = [...DEFAULT_CATEGORIES.map(([slug, name]) => ({ slug, name, isDefault: true })), ...custom];
+        const seen = new Set();
+        res.json(merged.filter(({ slug }) => !RETIRED_CATEGORIES.has(slug) && !seen.has(slug) && seen.add(slug)));
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch categories', error: error.message });
+    }
+};
+
+export const createCategory = async (req, res) => {
+    try {
+        const name = String(req.body.name || '').trim();
+        const slug = slugifyCategory(req.body.slug || name);
+        if (!name || !slug) return res.status(400).json({ message: 'Category name is required' });
+        if (RETIRED_CATEGORIES.has(slug) || DEFAULT_CATEGORIES.some(([value]) => value === slug)) {
+            return res.status(409).json({ message: 'That category already exists or is retired' });
+        }
+        const category = await GiftBoxCategory.create({ name, slug });
+        res.status(201).json(category);
+    } catch (error) {
+        if (error.code === 11000) return res.status(409).json({ message: 'Category already exists' });
+        res.status(500).json({ message: 'Failed to create category', error: error.message });
+    }
+};
 
 const GIFT_BOX_PROFILES = new Set(['for-him', 'for-her', 'unisex']);
 
@@ -40,7 +79,7 @@ export const getAllItems = async (req, res) => {
 // Get items by category
 export const getItemsByCategory = async (req, res) => {
     try {
-        const { category } = req.params;
+        const category = slugifyCategory(req.params.category);
         const items = await GiftBoxItem.find({ category, inStock: true }).sort({ createdAt: -1 }).lean();
         res.status(200).json(items);
     } catch (error) {
@@ -69,7 +108,8 @@ export const getItemById = async (req, res) => {
 // Create new gift box item (Admin)
 export const createItem = async (req, res) => {
     try {
-        const { name, price, category, description } = req.body;
+        const { name, price, description } = req.body;
+        const category = slugifyCategory(req.body.category);
         const profile = normalizeProfile(req.body.profile);
 
         if (!name || !price || !category) {
@@ -163,6 +203,10 @@ export const updateItem = async (req, res) => {
 
         if (updateData.price !== undefined) {
             updateData.price = Number(updateData.price);
+        }
+
+        if (updateData.category !== undefined) {
+            updateData.category = slugifyCategory(updateData.category);
         }
 
         if (updateData.profile !== undefined) {

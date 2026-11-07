@@ -9,17 +9,8 @@ const giftBoxItemSchema = new mongoose.Schema({
         type: String,
         required: true,
         index: true,
-        enum: [
-            'chocolates-snacks',
-            'flowers',
-            'customised-items',
-            'jewellery-accessories',
-            'fragrances',
-            'clothing',
-            'shoes',
-            'beauty-personal-care',
-            'gift-cards'
-        ]
+        trim: true,
+        lowercase: true
     },
     profile: {
         type: String,
