@@ -15,6 +15,7 @@ const shippingAddressSchema = new mongoose.Schema({
 });
 
 const productPersonalizationSchema = new mongoose.Schema({
+    cakeMessage: { type: String, trim: true, maxlength: 50 },
     customerImages: [{
         url: { type: String, required: true },
         publicId: { type: String, required: true },

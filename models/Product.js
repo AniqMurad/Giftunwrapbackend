@@ -56,6 +56,7 @@ const productSchema = new mongoose.Schema({
             metaDescription: { type: String },
             showWhatsInside: { type: Boolean, default: false },
             showPackaging: { type: Boolean, default: false },
+            allowCakeMessage: { type: Boolean, default: false },
             showSizeOptions: { type: Boolean, default: false },
             sizeOptions: { type: [mongoose.Schema.Types.Mixed], default: [] },
             showColorOptions: { type: Boolean, default: false },

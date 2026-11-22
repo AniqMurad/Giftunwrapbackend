@@ -367,6 +367,21 @@ export const createOrder = async (req, res) => {
           };
         }
 
+        const requestedCakeMessage = item.personalization?.cakeMessage;
+        if (requestedCakeMessage !== undefined && typeof requestedCakeMessage !== "string") {
+          return res.status(400).json({ message: `The cake message for ${product.name} must be text.` });
+        }
+        const cakeMessage = (requestedCakeMessage || "").trim();
+        if (cakeMessage.length > 50) {
+          return res.status(400).json({ message: `The cake message for ${product.name} must be 50 characters or fewer.` });
+        }
+        if (cakeMessage && !product.allowCakeMessage) {
+          return res.status(400).json({ message: `Cake messages are not available for ${product.name}.` });
+        }
+        if (cakeMessage) {
+          verifiedPersonalization = { ...(verifiedPersonalization || {}), cakeMessage };
+        }
+
         itemsForDatabase.push({
           productCategory: item.category,
           productId: item.id,

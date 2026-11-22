@@ -92,6 +92,7 @@ const normalizeColorOptions = (values, images = []) => {
 };
 
 const normalizeProductOptions = (product, images = product.images) => {
+    product.allowCakeMessage = Boolean(product.allowCakeMessage);
     product.sizeOptions = normalizeSizeOptions(product.sizeOptions, product.price);
     product.colorOptions = normalizeColorOptions(product.colorOptions, images);
     product.showSizeOptions = Boolean(product.showSizeOptions && product.sizeOptions.length);
@@ -362,6 +363,7 @@ export const updateProductById = async (req, res) => {
         if (updatedProductData.metaDescription !== undefined) productToUpdate.metaDescription = updatedProductData.metaDescription;
         if (updatedProductData.showWhatsInside !== undefined) productToUpdate.showWhatsInside = Boolean(updatedProductData.showWhatsInside);
         if (updatedProductData.showPackaging !== undefined) productToUpdate.showPackaging = Boolean(updatedProductData.showPackaging);
+        if (updatedProductData.allowCakeMessage !== undefined) productToUpdate.allowCakeMessage = Boolean(updatedProductData.allowCakeMessage);
         if (updatedProductData.sizeOptions !== undefined) productToUpdate.sizeOptions = normalizeSizeOptions(updatedProductData.sizeOptions, productToUpdate.price);
         if (updatedProductData.showSizeOptions !== undefined) {
             productToUpdate.showSizeOptions = Boolean(updatedProductData.showSizeOptions && productToUpdate.sizeOptions.length);
