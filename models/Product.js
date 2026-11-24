@@ -58,6 +58,7 @@ const productSchema = new mongoose.Schema({
             showPackaging: { type: Boolean, default: false },
             allowCakeMessage: { type: Boolean, default: false },
             showSizeOptions: { type: Boolean, default: false },
+            ringSizeMode: { type: String, enum: ['none', 'adjustable', 'available'], default: 'none' },
             sizeOptions: { type: [mongoose.Schema.Types.Mixed], default: [] },
             showColorOptions: { type: Boolean, default: false },
             colorOptions: { type: [mongoose.Schema.Types.Mixed], default: [] },

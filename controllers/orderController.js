@@ -226,7 +226,7 @@ export const createOrder = async (req, res) => {
             });
         }
 
-        const allowedSizeOptions = product.showSizeOptions
+        const allowedSizeOptions = product.ringSizeMode !== 'adjustable' && (product.showSizeOptions || product.ringSizeMode === 'available')
           ? (product.sizeOptions || []).map((value) => typeof value === "string"
             ? { name: String(value).trim(), price: Number(product.price) }
             : {
@@ -247,14 +247,14 @@ export const createOrder = async (req, res) => {
         const requestedColor = String(item.selectedColor || "").trim();
 
         const selectedSizeOption = allowedSizeOptions.find((value) => value.name === requestedSize);
-        if (allowedSizeOptions.length && !selectedSizeOption) {
+        if ((allowedSizeOptions.length || product.ringSizeMode === 'available') && !selectedSizeOption) {
           return res.status(400).json({ message: `Choose a valid size for ${product.name}.` });
         }
         const selectedColorOption = allowedColorOptions.find((value) => value.name === requestedColor);
         if (allowedColorOptions.length && !selectedColorOption) {
           return res.status(400).json({ message: `Choose a valid color for ${product.name}.` });
         }
-        const selectedSize = allowedSizeOptions.length ? requestedSize : "";
+        const selectedSize = product.ringSizeMode === 'adjustable' ? 'Adjustable' : allowedSizeOptions.length ? requestedSize : "";
         const selectedColor = allowedColorOptions.length ? requestedColor : "";
         const allowedPhotoBundles = product.requiresCustomerImages && product.showPhotoBundleOptions
           ? (product.photoBundleOptions || []).map((option) => ({

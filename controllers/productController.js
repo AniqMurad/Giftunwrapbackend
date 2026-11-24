@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import User from "../models/User.js";
 import { getNextProductId } from "../utils/getNextProductId.js";
 import Counter from "../models/Counter.js";
+import { normalizeRingSizing } from "../utils/ringSizing.js";
 
 const MAX_PRODUCT_IMAGES = 10;
 const MAX_CUSTOMER_IMAGES = 30;
@@ -217,6 +218,8 @@ export const createProductCategory = async (req, res) => {
             return res.status(400).json({ message: `A product can have up to ${MAX_PRODUCT_IMAGES} images.` });
         }
         productData.images = uploadedUrls;
+        const ringSizeError = normalizeRingSizing(productData);
+        if (ringSizeError) return res.status(400).json({ message: ringSizeError });
         normalizeProductOptions(productData, uploadedUrls);
         if (category !== "personalized") {
             productData.requiresCustomerImages = false;
@@ -418,6 +421,19 @@ export const updateProductById = async (req, res) => {
         // but avoid changing it after creation if it's meant to be a unique identifier.
         // For now, assume it's stable after creation and doesn't need to be updated.
 
+        if (updatedProductData.ringSizeMode !== undefined) productToUpdate.ringSizeMode = updatedProductData.ringSizeMode;
+        const ringSizeError = normalizeRingSizing({
+            ringSizeMode: productToUpdate.ringSizeMode,
+            price: productToUpdate.price,
+            sizeOptions: updatedProductData.sizeOptions ?? productToUpdate.sizeOptions,
+        });
+        if (ringSizeError) return res.status(400).json({ message: ringSizeError });
+        if (productToUpdate.ringSizeMode === 'adjustable') {
+            productToUpdate.showSizeOptions = false;
+            productToUpdate.sizeOptions = [];
+        } else if (productToUpdate.ringSizeMode === 'available') {
+            productToUpdate.showSizeOptions = true;
+        }
         await categoryDoc.save();
         console.log(`Product ${productId} updated successfully.`);
 
